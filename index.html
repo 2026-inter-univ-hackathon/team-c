@@ -43,13 +43,22 @@
   .sortline b { color: var(--fg); }
 
   /* ② バイト先カード */
-  .card { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 12px; background: #fff; overflow: hidden; }
-  .card.open { border-color: var(--accent); }
+  .card {
+    border: 1px solid var(--line); border-radius: 14px; margin-bottom: 12px;
+    background: #fff; overflow: hidden; box-shadow: 0 1px 2px rgba(20, 20, 30, .04);
+    transition: box-shadow .15s ease, border-color .15s ease;
+  }
+  .card.open { border-color: var(--accent); box-shadow: 0 4px 14px rgba(43, 108, 176, .12); }
   .card-head {
     display: flex; align-items: center; gap: 12px; width: 100%;
     padding: 14px; border: 0; background: none; text-align: left; cursor: pointer;
   }
-  .card-head:hover { background: #f9fafb; }
+  .card-head:hover { background: #fbf8f1; }
+  .card-emoji {
+    flex-shrink: 0; width: 40px; height: 40px; border-radius: 12px;
+    background: #fdf3e0; display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem;
+  }
   .card-title { flex: 1; min-width: 0; }
   .card-title .name { font-weight: 700; }
   .card-meta { font-size: .8rem; color: var(--muted); }
@@ -139,8 +148,8 @@
 
   <!-- ② バイト先の一覧 → ③ 詳細 → ④ 人が決める -->
   <section>
-    <h2>② バイト先</h2>
-    <p class="note">点数は、勤続期間が長い人の評価ほど重く数えた加重平均です。</p>
+    <h2>② バイト先を見てみよう</h2>
+    <p class="note">点数は、長く働いた人の声を重めに聞いた「みんなの本音」です。気になったらカードを開いてね。</p>
     <div id="list" style="margin-top:12px"></div>
   </section>
 
@@ -212,6 +221,14 @@ const TENURES = [
 ];
 const AGE_BANDS = ['18-19歳', '20-22歳', '23-25歳', '26歳以上'];
 const ROLES     = ['大学生', 'フリーター', '社会人'];
+
+// バイト先カードの見た目をやわらかくするための、業種ごとの絵文字
+const CATEGORY_EMOJI = {
+  'カフェ': '☕', 'コンビニ': '🏪', '塾講師': '📚', '軽作業': '📦',
+};
+function categoryEmoji(category) {
+  return CATEGORY_EMOJI[category] || '🏬';
+}
 
 // 事実項目。平均は取らず、そのまま並べて見せる
 const FACT_FIELDS = [
@@ -422,6 +439,7 @@ function renderList() {
     return '' +
     '<div class="card' + (openId === w.id ? ' open' : '') + '" data-id="' + w.id + '">' +
       '<button class="card-head" data-act="toggle">' +
+        '<div class="card-emoji" aria-hidden="true">' + categoryEmoji(w.category) + '</div>' +
         '<div class="card-title">' +
           '<div class="name">' + esc(w.name) + flag + '</div>' +
           '<div class="card-meta">' + esc(w.category) + '／' + esc(w.area) + '</div>' +
