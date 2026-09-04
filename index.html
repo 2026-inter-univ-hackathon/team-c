@@ -51,14 +51,19 @@
   }
   .card-head:hover { background: #f9fafb; }
   .card-title { flex: 1; min-width: 0; }
-  .card-title .name { font-weight: 700; }
+  .card-title .name { font-weight: 700; font-size: 1.02rem; }
   .card-meta { font-size: .8rem; color: var(--muted); }
+  .thumb {
+    width: 88px; height: 88px; flex-shrink: 0;
+    border-radius: 10px; object-fit: cover; background: #eceef1;
+  }
+  .rating-line { display: flex; align-items: center; gap: 6px; font-size: .85rem; margin-top: 2px; }
+  .rating-line .num { font-weight: 700; color: #5f6368; }
+  .rating-line .cnt { color: var(--muted); font-size: .8rem; }
+  .hero { width: 100%; height: 150px; object-fit: cover; display: block; border-radius: 8px; margin-top: 12px; }
   .pills { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
   .pill { font-size: .75rem; padding: 2px 8px; border-radius: 999px; background: #eef1f5; color: #444; }
   .pill.pay { background: #e7f2ea; color: #1d7a4c; }
-  .score { text-align: right; flex-shrink: 0; }
-  .score .num { font-size: 1.5rem; font-weight: 700; line-height: 1.1; }
-  .score .cnt { font-size: .75rem; color: var(--muted); }
   .stars { color: var(--star); letter-spacing: 1px; font-size: .9rem; }
   .stars .off { color: #d5d8dd; }
   .flag { font-size: .75rem; padding: 2px 8px; border-radius: 4px; margin-left: 8px; }
@@ -184,7 +189,7 @@
   </section>
 
   <footer>
-    <p>ハッカソン用のモックです。データはこのブラウザの localStorage にだけ保存されます。<br>
+    <p>ハッカソン用のモックです。データはこのブラウザの localStorage にだけ保存されます。写真はイメージです（Unsplash）。<br>
       <button id="reset">保存内容をリセットしてデモデータに戻す</button></p>
   </footer>
 
@@ -339,6 +344,15 @@ function overallScore(reviews, keys) {
   return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
 }
 
+// 業種ごとの写真（img/ に同梱。オフラインでも表示される）
+const PHOTOS = {
+  'カフェ':   'img/cafe.jpg',
+  'コンビニ': 'img/conv.jpg',
+  '塾講師':   'img/juku.jpg',
+  '軽作業':   'img/wh.jpg',
+};
+const photoOf = w => PHOTOS[w.category] || '';
+
 function reviewsOf(data, workplaceId) {
   return data.reviews.filter(r => r.workplaceId === workplaceId);
 }
@@ -424,17 +438,18 @@ function renderList() {
       '<button class="card-head" data-act="toggle">' +
         '<div class="card-title">' +
           '<div class="name">' + esc(w.name) + flag + '</div>' +
-          '<div class="card-meta">' + esc(w.category) + '／' + esc(w.area) + '</div>' +
+          '<div class="rating-line">' +
+            '<span class="num">' + (score === null ? '—' : score.toFixed(1)) + '</span>' +
+            (score === null ? '' : starsHtml(score)) +
+            '<span class="cnt">（' + rs.length + '件）</span>' +
+          '</div>' +
+          '<div class="card-meta">' + esc(w.category) + '・' + esc(w.area) + '</div>' +
           '<div class="pills">' +
             (pay ? '<span class="pill pay">' + esc(pay[0]) + '</span>' : '') +
             (stu ? '<span class="pill">大学生 ' + esc(stu[0]) + '</span>' : '') +
           '</div>' +
         '</div>' +
-        '<div class="score">' +
-          '<div class="num">' + (score === null ? '—' : score.toFixed(1)) + '</div>' +
-          (score === null ? '' : starsHtml(score)) +
-          '<div class="cnt">' + rs.length + '件のレビュー</div>' +
-        '</div>' +
+        (photoOf(w) ? '<img class="thumb" src="' + photoOf(w) + '" alt="' + esc(w.category) + 'のイメージ写真">' : '') +
       '</button>' +
       (openId === w.id ? detailHtml(w, rs) : '') +
     '</div>';
@@ -484,6 +499,7 @@ function detailHtml(w, rs) {
   const dec = data.decisions[w.id];
 
   return '<div class="detail">' +
+    (photoOf(w) ? '<img class="hero" src="' + photoOf(w) + '" alt="' + esc(w.category) + 'のイメージ写真">' : '') +
     '<div class="cols">' +
       '<div>' +
         '<h3>項目別の評価</h3>' + bars +
