@@ -3,106 +3,660 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>プロダクト名</title>
+<title>バイトのホンネ</title>
 <style>
   /* ============================================================
-     見た目。動線が通ってから、時間が余ったら手を入れる
+     見た目。動線が通ってから手を入れる
      ============================================================ */
-  :root { --fg: #1a1a1a; --bg: #fff; --line: #d8dce2; --accent: #2b6cb0; }
+  :root {
+    --fg: #1a1a1a; --bg: #f6f7f9; --card: #fff;
+    --line: #d8dce2; --muted: #6b7280;
+    --accent: #2b6cb0; --keep: #1d7a4c; --pass: #8a8f98;
+    --star: #e0a11b;
+  }
   * { box-sizing: border-box; }
   body {
     font-family: "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
     color: var(--fg); background: var(--bg);
-    margin: 0; padding: 24px; line-height: 1.6;
+    margin: 0; padding: 20px 16px 64px; line-height: 1.6;
   }
-  main { max-width: 720px; margin: 0 auto; }
-  h1 { font-size: 1.5rem; margin: 0 0 4px; }
-  .lead { color: #666; margin: 0 0 24px; }
-  section { border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
-  h2 { font-size: 1rem; margin: 0 0 12px; }
-  input, textarea, button { font: inherit; }
-  input, textarea { width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 4px; }
-  button { padding: 8px 16px; border: 0; border-radius: 4px; background: var(--accent); color: #fff; cursor: pointer; }
-  button:hover { opacity: .85; }
-  .row { display: flex; gap: 8px; align-items: center; }
-  .muted { color: #666; font-size: .9rem; }
+  main { max-width: 820px; margin: 0 auto; }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  .lead { color: var(--muted); margin: 0 0 20px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  h2 { font-size: 1rem; margin: 0 0 4px; }
+  h3 { font-size: .85rem; margin: 16px 0 6px; color: var(--muted); font-weight: 700; letter-spacing: .02em; }
+  .note { color: var(--muted); font-size: .8rem; margin: 6px 0 0; }
+  input, textarea, button, select { font: inherit; }
+  input[type=text], textarea, select { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 5px; background: #fff; }
+  textarea { resize: vertical; }
+
+  /* ① 重視することを選ぶ */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .chip {
+    padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px;
+    background: #fff; color: var(--fg); cursor: pointer;
+  }
+  .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .chip:disabled { opacity: .4; cursor: not-allowed; }
+  .sortline { margin-top: 12px; font-size: .85rem; color: var(--muted); }
+  .sortline b { color: var(--fg); }
+
+  /* ② バイト先カード */
+  .card { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 12px; background: #fff; overflow: hidden; }
+  .card.open { border-color: var(--accent); }
+  .card-head {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    padding: 14px; border: 0; background: none; text-align: left; cursor: pointer;
+  }
+  .card-head:hover { background: #f9fafb; }
+  .card-title { flex: 1; min-width: 0; }
+  .card-title .name { font-weight: 700; }
+  .card-meta { font-size: .8rem; color: var(--muted); }
+  .pills { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .pill { font-size: .75rem; padding: 2px 8px; border-radius: 999px; background: #eef1f5; color: #444; }
+  .pill.pay { background: #e7f2ea; color: #1d7a4c; }
+  .score { text-align: right; flex-shrink: 0; }
+  .score .num { font-size: 1.5rem; font-weight: 700; line-height: 1.1; }
+  .score .cnt { font-size: .75rem; color: var(--muted); }
+  .stars { color: var(--star); letter-spacing: 1px; font-size: .9rem; }
+  .stars .off { color: #d5d8dd; }
+  .flag { font-size: .75rem; padding: 2px 8px; border-radius: 4px; margin-left: 8px; }
+  .flag.keep { background: #e7f2ea; color: var(--keep); }
+  .flag.pass { background: #eceef1; color: var(--pass); }
+
+  /* 詳細 */
+  .detail { padding: 0 14px 14px; border-top: 1px solid var(--line); }
+  .cols { display: flex; flex-wrap: wrap; gap: 24px; }
+  .cols > div { flex: 1 1 260px; min-width: 0; }
+  .barrow { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: .85rem; }
+  .barrow .lb { width: 8.5em; flex-shrink: 0; }
+  .bar { flex: 1; height: 8px; background: #eceef1; border-radius: 4px; overflow: hidden; }
+  .bar .fill { height: 100%; background: var(--accent); }
+  .barrow .vl { width: 2.4em; text-align: right; color: var(--muted); }
+  .factrow { font-size: .85rem; margin-bottom: 4px; }
+  .factrow .fl { color: var(--muted); }
+  .factrow .fv { font-weight: 700; }
+  .factrow .fb { color: var(--muted); font-size: .78rem; }
+  .duties { margin: 0; padding-left: 1.2em; font-size: .85rem; }
+
+  /* レビュー1件 */
+  .review { border-top: 1px dashed var(--line); padding: 10px 0; }
+  .badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .badge { font-size: .75rem; padding: 2px 8px; border-radius: 4px; background: #eef1f5; color: #444; }
+  .trust { font-size: .75rem; padding: 2px 8px; border-radius: 4px; font-weight: 700; }
+  .trust.hi { background: #e7f2ea; color: var(--keep); }
+  .trust.mid { background: #fdf3e0; color: #a06a06; }
+  .trust.lo { background: #eceef1; color: var(--pass); }
+  .review .cmt { margin: 6px 0 0; font-size: .9rem; }
+  .review .rt { margin: 4px 0 0; font-size: .78rem; color: var(--muted); }
+
+  /* ④ 人が決める */
+  .decide { margin-top: 16px; padding: 12px; background: #f6f7f9; border-radius: 8px; }
+  .decide p { margin: 0 0 8px; font-size: .9rem; }
+  .decide .btns { display: flex; gap: 8px; }
+  button.act { padding: 8px 16px; border: 1px solid var(--line); border-radius: 5px; background: #fff; cursor: pointer; }
+  button.act:hover { background: #f0f2f5; }
+  button.act[aria-pressed="true"].keep { background: var(--keep); border-color: var(--keep); color: #fff; }
+  button.act[aria-pressed="true"].pass { background: var(--pass); border-color: var(--pass); color: #fff; }
+
+  /* 判断のまとめ */
+  .summary { font-size: .9rem; }
+  .summary ul { margin: 4px 0 0; padding-left: 1.2em; }
+
+  /* ⑤ 投稿フォーム */
+  .grid { display: flex; flex-wrap: wrap; gap: 12px; }
+  .field { flex: 1 1 180px; min-width: 0; }
+  .field > label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: 2px; }
+  .starrow { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .starrow .lb { width: 9em; font-size: .85rem; flex-shrink: 0; }
+  .starrow .hint { font-size: .75rem; color: var(--muted); }
+  .star {
+    border: 0; background: none; cursor: pointer; padding: 0 1px;
+    font-size: 1.15rem; color: #d5d8dd; line-height: 1;
+  }
+  .star.on { color: var(--star); }
+  button.primary { padding: 10px 20px; border: 0; border-radius: 5px; background: var(--accent); color: #fff; cursor: pointer; }
+  button.primary:hover { opacity: .88; }
+  .status { margin-left: 12px; font-size: .85rem; color: var(--keep); }
+  footer { text-align: center; color: var(--muted); font-size: .8rem; }
+  footer button { background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; font-size: .8rem; }
 </style>
 </head>
 <body>
 <main>
 
-  <h1>プロダクト名</h1>
-  <p class="lead">一言で何か（誰の、何を解決するか）</p>
+  <h1>バイトのホンネ</h1>
+  <p class="lead">働く側の声で「このバイト、自分に合うか」を判断する。求人票に載らない雰囲気・シフト・支払いを、<b>誰が言っているか</b>つきで見る。</p>
 
-  <!-- ============================================================
-       ここから下が本体。セクションを足したり消したりして作る
-       ============================================================ -->
+  <!-- ① 重視することを選ぶ -->
+  <section>
+    <h2>① 何を重視しますか？</h2>
+    <p class="note">最大3つまで。選んだ項目だけで並び替えます（選ばなければ全項目の平均）。</p>
+    <div class="chips" id="chips"></div>
+    <p class="sortline" id="sortline"></p>
+  </section>
+
+  <!-- ② バイト先の一覧 → ③ 詳細 → ④ 人が決める -->
+  <section>
+    <h2>② バイト先</h2>
+    <p class="note">点数は、勤続期間が長い人の評価ほど重く数えた加重平均です。</p>
+    <div id="list" style="margin-top:12px"></div>
+  </section>
 
   <section>
-    <h2>入力</h2>
-    <div class="row">
-      <input id="input" type="text" placeholder="ここに入力">
-      <button id="save">保存</button>
+    <h2>あなたの判断</h2>
+    <div class="summary" id="summary"></div>
+  </section>
+
+  <!-- ⑤ レビューを投稿する -->
+  <section>
+    <h2>③ レビューを投稿する</h2>
+    <p class="note">属性は「その評価がどれくらい参考になるか」の表示に使います。</p>
+
+    <h3>どのバイト先か</h3>
+    <select id="f-workplace"></select>
+
+    <h3>あなたの属性</h3>
+    <div class="grid">
+      <div class="field"><label for="f-tenure">勤続期間</label><select id="f-tenure"></select></div>
+      <div class="field"><label for="f-age">年齢層</label><select id="f-age"></select></div>
+      <div class="field"><label for="f-role">立場</label><select id="f-role"></select></div>
     </div>
+
+    <h3>働き方の事実</h3>
+    <div class="grid" id="f-facts"></div>
+    <div class="field" style="margin-top:8px">
+      <label for="f-duties">実際の業務内容（1行）</label>
+      <input type="text" id="f-duties" placeholder="例：レジ、品出し、発注の補助">
+    </div>
+
+    <h3>5段階の評価</h3>
+    <div id="f-ratings"></div>
+
+    <h3>コメント（任意）</h3>
+    <textarea id="f-comment" rows="3" placeholder="これから働く人に伝えたいこと"></textarea>
+
+    <p style="margin:16px 0 0">
+      <button class="primary" id="submit">この内容で投稿する</button>
+      <span class="status" id="status"></span>
+    </p>
   </section>
 
-  <section>
-    <h2>結果</h2>
-    <div id="output" class="muted">まだ何もありません</div>
-  </section>
-
-  <!-- ============================================================
-       AI に任せない部分は、ここに置くことが多いです。
-       AI が候補を出して、最後に人が選ぶ／決める場所を1つ残してください。
-       （例）候補を3つ並べて、人がボタンで選ぶ
-       ============================================================ -->
+  <footer>
+    <p>ハッカソン用のモックです。データはこのブラウザの localStorage にだけ保存されます。<br>
+      <button id="reset">保存内容をリセットしてデモデータに戻す</button></p>
+  </footer>
 
 </main>
 
 <script>
 // ============================================================
-// データの保存と読み込み（localStorage）
-// この2つの関数だけ使えば、リロードしても消えません
+// 決めたこと（CLAUDE.md と対応）
+//   ・保存は localStorage のキー 'app-data' 1つにまとめる
+//   ・画面は index.html の1枚だけ
+//   ・動線は1本： ①重視を選ぶ → ②並び替え → ③中身を見る → ④人が決める
+//   ・④ の「気になる／見送る」だけは、アプリが自動で決めない
 // ============================================================
 
 const STORAGE_KEY = 'app-data';
 
+// --- 選択肢の定義 ------------------------------------------------
+
+// 勤続期間ごとの重み。この数字が「その評価をどれだけ重く数えるか」
+const TENURES = [
+  { v: '2y', label: '2年以上',   w: 1.0  },
+  { v: '1y', label: '1年',       w: 0.85 },
+  { v: '6m', label: '半年',      w: 0.7  },
+  { v: '3m', label: '3か月未満', w: 0.5  },
+];
+const AGE_BANDS = ['18-19歳', '20-22歳', '23-25歳', '26歳以上'];
+const ROLES     = ['大学生', 'フリーター', '社会人'];
+
+// 事実項目。平均は取らず、そのまま並べて見せる
+const FACT_FIELDS = [
+  { key: 'payCycle',     label: '支払いサイクル', options: ['日払い', '週払い', '月払い'] },
+  { key: 'studentRatio', label: '大学生の割合',   options: ['ほぼ全員', '半分くらい', '少数', 'ほぼいない'] },
+  { key: 'hiring',       label: '募集状況',       options: ['大量募集中', '数名', '不明'] },
+  { key: 'channel',      label: '応募経路',       options: ['直接応募', '求人サイト経由'] },
+];
+
+// 5段階で評価する項目
+const RATING_ITEMS = [
+  { key: 'talk',    label: '話しかけやすさ', hint: '同世代がいて話しかけやすいか' },
+  { key: 'env',     label: '周りの環境',     hint: '設備・立地・清潔さ' },
+  { key: 'hours',   label: '労働時間の負担', hint: '高いほど負担が軽い' },
+  { key: 'bond',    label: '職場内の繋がり', hint: '親睦会・打ち上げ' },
+  { key: 'support', label: 'サポートの手厚さ', hint: '研修・フォロー' },
+  { key: 'shift',   label: 'シフトの融通',   hint: '希望が通るか' },
+];
+const RATING_KEYS = RATING_ITEMS.map(i => i.key);
+
+// --- デモ用のシードデータ ----------------------------------------
+// localStorage が空のときに流し込む。GitHub Pages で初めて開いた人にも中身が見える
+
+function seed() {
+  const rv = (id, workplaceId, tenure, ageBand, role, ratings, facts, duties, comment, createdAt) => ({
+    id, workplaceId, createdAt,
+    author: { tenure, ageBand, role },
+    facts: { payCycle: facts[0], studentRatio: facts[1], hiring: facts[2], channel: facts[3], duties },
+    ratings: {
+      talk: ratings[0], env: ratings[1], hours: ratings[2],
+      bond: ratings[3], support: ratings[4], shift: ratings[5],
+    },
+    comment,
+  });
+  return {
+    workplaces: [
+      { id: 'w1', name: 'カフェ・ルミエール 渋谷店',       category: 'カフェ',   area: '渋谷' },
+      { id: 'w2', name: 'まちかどマート 高田馬場店',       category: 'コンビニ', area: '高田馬場' },
+      { id: 'w3', name: '個別指導塾ステップアップ 池袋校', category: '塾講師',   area: '池袋' },
+      { id: 'w4', name: '品川ピッキングセンター',          category: '軽作業',   area: '品川' },
+    ],
+    reviews: [
+      rv('r1', 'w1', '2y', '23-25歳', '大学生', [4,4,3,4,4,3], ['月払い','半分くらい','数名','求人サイト経由'],
+         'ドリンク作りとレジ、閉店後の清掃',
+         'ピーク時は忙しいけど、社員さんが必ずフォローに入ってくれる。シフトは2週間ごとの提出で、テスト期間は減らしてもらえた。', '2026-06-11'),
+      rv('r2', 'w1', '6m', '20-22歳', '大学生', [5,4,4,3,3,4], ['月払い','ほぼ全員','数名','求人サイト経由'],
+         'ホール接客とレジ', '同い年が多くて、初日から普通に喋れた。', '2026-07-28'),
+      rv('r3', 'w1', '3m', '18-19歳', '大学生', [4,3,3,2,2,3], ['月払い','半分くらい','大量募集中','直接応募'],
+         'レジ', '', '2026-08-19'),
+
+      rv('r4', 'w2', '1y', '20-22歳', 'フリーター', [3,3,4,2,3,5], ['月払い','少数','大量募集中','求人サイト経由'],
+         'レジ、品出し、発注の補助', '深夜は一人なので黙々とやりたい人向け。シフトの融通はかなり利く。', '2026-05-30'),
+      rv('r5', 'w2', '6m', '26歳以上', '社会人', [2,3,4,1,2,5], ['月払い','少数','大量募集中','直接応募'],
+         'レジと品出し', '年齢層がバラバラで会話はほぼない。割り切れるなら楽。', '2026-07-09'),
+      rv('r6', 'w2', '3m', '18-19歳', '大学生', [2,2,3,1,2,4], ['月払い','ほぼいない','大量募集中','求人サイト経由'],
+         '品出し', '', '2026-08-24'),
+
+      rv('r7', 'w3', '2y', '23-25歳', '大学生', [4,5,4,3,4,2], ['月払い','ほぼ全員','数名','求人サイト経由'],
+         '中学生2名の個別指導と報告書の作成',
+         'コマ以外の準備時間は給料が出ないので、時給だけ見ると印象と違う。学生講師ばかりなので話は合う。', '2026-04-16'),
+      rv('r8', 'w3', '1y', '20-22歳', '大学生', [5,5,4,4,3,2], ['月払い','ほぼ全員','数名','求人サイト経由'],
+         '高校生の英語指導', '飲み会が学期に一回くらいある。担当が固定なので、休むときは代講を自分で探す必要あり。', '2026-06-25'),
+      rv('r9', 'w3', '6m', '20-22歳', '大学生', [4,4,5,3,2,1], ['月払い','ほぼ全員','不明','求人サイト経由'],
+         '小学生の算数', '', '2026-08-02'),
+
+      rv('r10', 'w4', '2y', '23-25歳', 'フリーター', [3,2,3,2,4,4], ['週払い','半分くらい','大量募集中','直接応募'],
+         'リーダー業務と新人の指導', '長く続けると時給が上がる。あとは体力次第。', '2026-05-14'),
+      rv('r11', 'w4', '1y', '20-22歳', 'フリーター', [3,2,2,1,3,5], ['日払い','半分くらい','大量募集中','求人サイト経由'],
+         '棚から商品を集めて梱包',
+         '当日に現金でもらえるのが一番の理由。単発で入れるので、予定が読めない月でも助かる。', '2026-07-02'),
+      rv('r12', 'w4', '6m', '18-19歳', '大学生', [4,2,2,2,3,5], ['日払い','半分くらい','大量募集中','求人サイト経由'],
+         'ピッキングと検品', '大学生が多くて休憩中は喋れる。ただ立ちっぱなしで、冬はかなり寒い。', '2026-08-08'),
+      rv('r13', 'w4', '3m', '20-22歳', '大学生', [3,1,2,1,2,5], ['日払い','少数','大量募集中','求人サイト経由'],
+         '仕分け', '', '2026-08-27'),
+    ],
+    focus: [],       // ① で人が選んだ、重視する項目
+    decisions: {},   // ④ で人が押した結果 { workplaceId: 'keep' | 'pass' }
+  };
+}
+
+// --- 保存と読み込み ----------------------------------------------
+
 function loadData() {
+  let d;
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) ?? {};
+    d = JSON.parse(localStorage.getItem(STORAGE_KEY));
   } catch {
-    return {};   // 壊れた値が入っていても落ちないようにする
+    d = null;   // 壊れた値が入っていても落ちないようにする
   }
+  if (!d || !Array.isArray(d.workplaces) || !d.workplaces.length) {
+    d = seed();
+    saveData(d);
+  }
+  d.focus = d.focus || [];
+  d.decisions = d.decisions || {};
+  return d;
 }
 
 function saveData(data) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
-// ============================================================
-// ここから下が処理。動線を1本だけ通す
-//   ① 人が入力すること → ② 画面で起きること → ③ 人が目にする結果
-// この3つが繋がったら、9/4 は合格です。枝分かれは作らないでください。
-// ============================================================
+// --- 集計 --------------------------------------------------------
 
-const input  = document.getElementById('input');
-const output = document.getElementById('output');
-
-function render() {
-  const data = loadData();
-  output.textContent = data.text ? data.text : 'まだ何もありません';
-  output.className = data.text ? '' : 'muted';
+// レビュー1件の重み。勤続期間が長いほど重く、コメントがあれば少し足す
+function reviewWeight(r) {
+  const t = TENURES.find(t => t.v === r.author.tenure);
+  return (t ? t.w : 0.5) + (r.comment && r.comment.trim() ? 0.1 : 0);
 }
 
-document.getElementById('save').addEventListener('click', () => {
-  const data = loadData();
-  data.text = input.value;
-  saveData(data);
-  input.value = '';
-  render();
+// 項目1つの加重平均
+function itemAvg(reviews, key) {
+  let sum = 0, wsum = 0;
+  for (const r of reviews) {
+    const w = reviewWeight(r);
+    sum += r.ratings[key] * w;
+    wsum += w;
+  }
+  return wsum ? sum / wsum : null;
+}
+
+// 指定した項目たちの総合点。focus が空なら全項目
+function overallScore(reviews, keys) {
+  const vals = keys.map(k => itemAvg(reviews, k)).filter(v => v !== null);
+  return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+}
+
+function reviewsOf(data, workplaceId) {
+  return data.reviews.filter(r => r.workplaceId === workplaceId);
+}
+
+// 事実項目の内訳（多い順）
+function factCounts(reviews, key) {
+  const map = new Map();
+  for (const r of reviews) {
+    const v = r.facts[key];
+    if (v) map.set(v, (map.get(v) || 0) + 1);
+  }
+  return [...map.entries()].sort((a, b) => b[1] - a[1]);
+}
+
+// --- 表示のための小道具 ------------------------------------------
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => (
+  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+));
+
+function starsHtml(v) {
+  const n = Math.round(v);
+  return '<span class="stars">' + '★'.repeat(n) +
+         '<span class="off">' + '★'.repeat(5 - n) + '</span></span>';
+}
+
+function trustOf(r) {
+  const w = reviewWeight(r);
+  if (w >= 0.9) return { cls: 'hi',  label: '参考度 高' };
+  if (w >= 0.7) return { cls: 'mid', label: '参考度 中' };
+  return { cls: 'lo', label: '参考度 低' };
+}
+
+function tenureLabel(v) {
+  const t = TENURES.find(t => t.v === v);
+  return t ? t.label : v;
+}
+
+// ============================================================
+// 画面の状態
+// ============================================================
+
+let data = loadData();
+let openId = null;   // 開いているカード
+
+// ① 重視することを選ぶ
+function renderChips() {
+  const box = document.getElementById('chips');
+  const full = data.focus.length >= 3;
+  box.innerHTML = RATING_ITEMS.map(i => {
+    const on = data.focus.includes(i.key);
+    return '<button class="chip" data-key="' + i.key + '" aria-pressed="' + on + '"' +
+           (!on && full ? ' disabled' : '') + '>' + esc(i.label) + '</button>';
+  }).join('');
+
+  const line = document.getElementById('sortline');
+  if (data.focus.length) {
+    const names = data.focus.map(k => RATING_ITEMS.find(i => i.key === k).label).join('・');
+    line.innerHTML = '重視：<b>' + esc(names) + '</b> で並び替え中';
+  } else {
+    line.textContent = '全項目の平均で並び替え中';
+  }
+}
+
+// ② 一覧 → ③ 詳細 → ④ 判断
+function renderList() {
+  const keys = data.focus.length ? data.focus : RATING_KEYS;
+
+  const rows = data.workplaces.map(w => {
+    const rs = reviewsOf(data, w.id);
+    return { w, rs, score: overallScore(rs, keys) };
+  }).sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
+
+  document.getElementById('list').innerHTML = rows.map(({ w, rs, score }) => {
+    const pay = factCounts(rs, 'payCycle')[0];
+    const stu = factCounts(rs, 'studentRatio')[0];
+    const dec = data.decisions[w.id];
+    const flag = dec === 'keep' ? '<span class="flag keep">気になる</span>'
+               : dec === 'pass' ? '<span class="flag pass">見送り</span>' : '';
+
+    return '' +
+    '<div class="card' + (openId === w.id ? ' open' : '') + '" data-id="' + w.id + '">' +
+      '<button class="card-head" data-act="toggle">' +
+        '<div class="card-title">' +
+          '<div class="name">' + esc(w.name) + flag + '</div>' +
+          '<div class="card-meta">' + esc(w.category) + '／' + esc(w.area) + '</div>' +
+          '<div class="pills">' +
+            (pay ? '<span class="pill pay">' + esc(pay[0]) + '</span>' : '') +
+            (stu ? '<span class="pill">大学生 ' + esc(stu[0]) + '</span>' : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="score">' +
+          '<div class="num">' + (score === null ? '—' : score.toFixed(1)) + '</div>' +
+          (score === null ? '' : starsHtml(score)) +
+          '<div class="cnt">' + rs.length + '件のレビュー</div>' +
+        '</div>' +
+      '</button>' +
+      (openId === w.id ? detailHtml(w, rs) : '') +
+    '</div>';
+  }).join('');
+}
+
+function detailHtml(w, rs) {
+  const bars = RATING_ITEMS.map(i => {
+    const v = itemAvg(rs, i.key);
+    const on = data.focus.includes(i.key);
+    return '<div class="barrow">' +
+      '<span class="lb"' + (on ? ' style="font-weight:700"' : '') + '>' + esc(i.label) + '</span>' +
+      '<span class="bar"><span class="fill" style="width:' + (v === null ? 0 : v / 5 * 100) + '%"></span></span>' +
+      '<span class="vl">' + (v === null ? '—' : v.toFixed(1)) + '</span>' +
+    '</div>';
+  }).join('');
+
+  const facts = FACT_FIELDS.map(f => {
+    const c = factCounts(rs, f.key);
+    if (!c.length) return '';
+    const breakdown = c.map(([v, n]) => esc(v) + ' ' + n).join(' / ');
+    return '<div class="factrow"><span class="fl">' + esc(f.label) + '：</span>' +
+           '<span class="fv">' + esc(c[0][0]) + '</span> ' +
+           '<span class="fb">（' + breakdown + '）</span></div>';
+  }).join('');
+
+  const duties = [...new Set(rs.map(r => r.facts.duties).filter(Boolean))]
+    .map(d => '<li>' + esc(d) + '</li>').join('');
+
+  const reviews = [...rs].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+    .map(r => {
+      const t = trustOf(r);
+      const detail = RATING_ITEMS.map(i => i.label + ' ' + r.ratings[i.key]).join('・');
+      return '<div class="review">' +
+        '<div class="badges">' +
+          '<span class="trust ' + t.cls + '">' + t.label + '</span>' +
+          '<span class="badge">勤続 ' + esc(tenureLabel(r.author.tenure)) + '</span>' +
+          '<span class="badge">' + esc(r.author.ageBand) + '</span>' +
+          '<span class="badge">' + esc(r.author.role) + '</span>' +
+          '<span class="badge">' + esc(r.facts.payCycle) + '</span>' +
+        '</div>' +
+        (r.comment && r.comment.trim() ? '<p class="cmt">' + esc(r.comment) + '</p>' : '') +
+        '<p class="rt">' + esc(detail) + '　/　' + esc(r.createdAt || '') + '</p>' +
+      '</div>';
+    }).join('');
+
+  const dec = data.decisions[w.id];
+
+  return '<div class="detail">' +
+    '<div class="cols">' +
+      '<div>' +
+        '<h3>項目別の評価</h3>' + bars +
+        '<p class="note">勤続期間が長い人の評価ほど重く数えています（2年以上=1.0 → 3か月未満=0.5、コメントありは +0.1）。</p>' +
+      '</div>' +
+      '<div>' +
+        '<h3>働き方の事実</h3>' + facts +
+        '<h3>実際の業務内容</h3>' +
+        (duties ? '<ul class="duties">' + duties + '</ul>' : '<p class="note">まだありません</p>') +
+      '</div>' +
+    '</div>' +
+    '<h3>レビュー（' + rs.length + '件）</h3>' + reviews +
+    '<div class="decide">' +
+      '<p>点数が出せるのはここまで。<b>働くかどうかを決めるのはあなたです。</b></p>' +
+      '<div class="btns">' +
+        '<button class="act keep" data-act="keep" aria-pressed="' + (dec === 'keep') + '">気になる</button>' +
+        '<button class="act pass" data-act="pass" aria-pressed="' + (dec === 'pass') + '">見送る</button>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+// 人が押した結果のまとめ
+function renderSummary() {
+  const box = document.getElementById('summary');
+  const name = id => (data.workplaces.find(w => w.id === id) || {}).name || id;
+  const keep = Object.keys(data.decisions).filter(k => data.decisions[k] === 'keep');
+  const pass = Object.keys(data.decisions).filter(k => data.decisions[k] === 'pass');
+
+  if (!keep.length && !pass.length) {
+    box.innerHTML = '<p class="note" style="margin:0">まだ何も決めていません。カードを開いて「気になる／見送る」を押すと、ここに残ります。</p>';
+    return;
+  }
+  box.innerHTML =
+    (keep.length ? '<div><b>気になる（' + keep.length + '）</b><ul>' +
+      keep.map(id => '<li>' + esc(name(id)) + '</li>').join('') + '</ul></div>' : '') +
+    (pass.length ? '<div style="margin-top:8px"><b>見送る（' + pass.length + '）</b><ul>' +
+      pass.map(id => '<li>' + esc(name(id)) + '</li>').join('') + '</ul></div>' : '');
+}
+
+function renderAll() {
+  renderChips();
+  renderList();
+  renderSummary();
+}
+
+// ============================================================
+// ⑤ 投稿フォーム
+// ============================================================
+
+const draft = { ratings: {} };
+RATING_KEYS.forEach(k => draft.ratings[k] = 3);   // 初期値は真ん中
+
+function opt(v, label) { return '<option value="' + esc(v) + '">' + esc(label ?? v) + '</option>'; }
+
+function buildForm() {
+  document.getElementById('f-workplace').innerHTML =
+    data.workplaces.map(w => opt(w.id, w.name + '（' + w.category + '／' + w.area + '）')).join('');
+  document.getElementById('f-tenure').innerHTML = TENURES.map(t => opt(t.v, t.label)).join('');
+  document.getElementById('f-age').innerHTML    = AGE_BANDS.map(v => opt(v)).join('');
+  document.getElementById('f-role').innerHTML   = ROLES.map(v => opt(v)).join('');
+
+  document.getElementById('f-facts').innerHTML = FACT_FIELDS.map(f =>
+    '<div class="field"><label for="f-' + f.key + '">' + esc(f.label) + '</label>' +
+    '<select id="f-' + f.key + '">' + f.options.map(v => opt(v)).join('') + '</select></div>'
+  ).join('');
+
+  renderStars();
+}
+
+function renderStars() {
+  document.getElementById('f-ratings').innerHTML = RATING_ITEMS.map(i => {
+    const v = draft.ratings[i.key];
+    const stars = [1, 2, 3, 4, 5].map(n =>
+      '<button type="button" class="star' + (n <= v ? ' on' : '') + '" data-item="' + i.key +
+      '" data-value="' + n + '" aria-label="' + esc(i.label) + ' ' + n + '">★</button>'
+    ).join('');
+    return '<div class="starrow"><span class="lb">' + esc(i.label) + '</span>' +
+           '<span>' + stars + '</span><span class="hint">' + esc(i.hint) + '</span></div>';
+  }).join('');
+}
+
+document.getElementById('f-ratings').addEventListener('click', e => {
+  const b = e.target.closest('.star');
+  if (!b) return;
+  draft.ratings[b.dataset.item] = Number(b.dataset.value);
+  renderStars();
 });
 
-render();
+document.getElementById('submit').addEventListener('click', () => {
+  const val = id => document.getElementById(id).value;
+  const wid = val('f-workplace');
+
+  const review = {
+    id: 'r' + Date.now(),
+    workplaceId: wid,
+    createdAt: new Date().toISOString().slice(0, 10),
+    author: { tenure: val('f-tenure'), ageBand: val('f-age'), role: val('f-role') },
+    facts: {
+      payCycle:     val('f-payCycle'),
+      studentRatio: val('f-studentRatio'),
+      hiring:       val('f-hiring'),
+      channel:      val('f-channel'),
+      duties:       val('f-duties').trim(),
+    },
+    ratings: { ...draft.ratings },
+    comment: val('f-comment').trim(),
+  };
+
+  data.reviews.push(review);
+  saveData(data);
+
+  // 投稿したバイト先を開いた状態で描き直す（②に反映されたことが見えるように）
+  openId = wid;
+  renderAll();
+
+  document.getElementById('f-duties').value = '';
+  document.getElementById('f-comment').value = '';
+  const status = document.getElementById('status');
+  status.textContent = '投稿しました。上の一覧に反映されています。';
+  setTimeout(() => { status.textContent = ''; }, 4000);
+  document.querySelector('.card[data-id="' + wid + '"]').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+// ============================================================
+// 操作をまとめて受ける
+// ============================================================
+
+document.getElementById('chips').addEventListener('click', e => {
+  const b = e.target.closest('.chip');
+  if (!b) return;
+  const k = b.dataset.key;
+  if (data.focus.includes(k)) {
+    data.focus = data.focus.filter(x => x !== k);
+  } else if (data.focus.length < 3) {
+    data.focus.push(k);
+  }
+  saveData(data);
+  renderAll();
+});
+
+document.getElementById('list').addEventListener('click', e => {
+  const btn = e.target.closest('[data-act]');
+  if (!btn) return;
+  const id = btn.closest('.card').dataset.id;
+  const act = btn.dataset.act;
+
+  if (act === 'toggle') {
+    openId = (openId === id) ? null : id;
+  } else {
+    // ④ 人が決める。同じボタンをもう一度押すと取り消し
+    data.decisions[id] = (data.decisions[id] === act) ? undefined : act;
+    if (!data.decisions[id]) delete data.decisions[id];
+    saveData(data);
+  }
+  renderAll();
+});
+
+document.getElementById('reset').addEventListener('click', () => {
+  if (!confirm('投稿と判断をすべて消して、デモデータに戻します。よろしいですか？')) return;
+  data = seed();
+  saveData(data);
+  openId = null;
+  buildForm();
+  renderAll();
+});
+
+// ============================================================
+// 起動
+// ============================================================
+
+buildForm();
+renderAll();
 </script>
 </body>
 </html>
