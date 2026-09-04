@@ -7,6 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>バイトのホンネ</title>
+<link rel="icon" href="img/icon.svg">
+<link rel="apple-touch-icon" href="img/icon.svg">
 <style>
   /* ============================================================
      スマホアプリ風の見た目。幅430pxの1カラムに寄せ、
@@ -42,6 +44,8 @@
     background: rgba(255,255,255,.94); backdrop-filter: saturate(180%) blur(12px);
     border-bottom: 1px solid var(--line); padding: 12px 14px 10px;
   }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .applogo { width: 34px; height: 34px; border-radius: 9px; display: block; }
   .appbar h1 { font-size: 1.05rem; margin: 0; letter-spacing: .01em; }
   .appbar .tag { margin: 1px 0 0; font-size: .72rem; color: var(--sub); }
   .appbar .ask { margin: 10px 0 0; font-size: .8rem; font-weight: 700; }
@@ -74,6 +78,7 @@
     padding: 12px; background: none; border: 0; text-align: left;
   }
   .card-head:active { background: #f6f7f9; }
+  .thumb { flex: 0 0 auto; width: 48px; height: 48px; border-radius: 12px; display: block; }
   .card-title { flex: 1; min-width: 0; }
   .card-title .name { font-weight: 700; font-size: .95rem; }
   .card-meta { font-size: .72rem; color: var(--sub); margin-top: 1px; }
@@ -157,8 +162,13 @@
 <div class="app">
 
   <header class="appbar">
-    <h1>バイトのホンネ</h1>
-    <p class="tag">働く側の声で「自分に合うか」を決める</p>
+    <div class="brand">
+      <img class="applogo" src="img/icon.svg" alt="">
+      <div>
+        <h1>バイトのホンネ</h1>
+        <p class="tag">働く側の声で「自分に合うか」を決める</p>
+      </div>
+    </div>
     <p class="ask">何を重視する？<span style="font-weight:400;color:var(--sub)">（最大3つ）</span></p>
     <div class="chips" id="chips"></div>
     <p class="sortline" id="sortline"></p>
@@ -210,6 +220,15 @@ const TENURES = [
 const AGE_BANDS = ['18-19歳', '20-22歳', '23-25歳', '26歳以上'];
 const ROLES     = ['大学生', 'フリーター', '社会人'];
 
+// バイト先の画像。外から持ってこず img/ の SVG を使う（オフラインでも出るように）
+const CATEGORY_IMG = {
+  'カフェ':   'img/cafe.svg',
+  'コンビニ': 'img/konbini.svg',
+  '塾講師':   'img/juku.svg',
+  '軽作業':   'img/soko.svg',
+};
+const imageOf = w => w.image || CATEGORY_IMG[w.category] || 'img/other.svg';
+
 // 事実項目。平均は取らず、そのまま並べて見せる
 const FACT_FIELDS = [
   { key: 'payCycle',     label: '支払いサイクル', options: ['日払い', '週払い', '月払い'] },
@@ -245,10 +264,10 @@ function seed() {
   });
   return {
     workplaces: [
-      { id: 'w1', name: 'カフェ・ルミエール 渋谷店',       category: 'カフェ',   area: '渋谷' },
-      { id: 'w2', name: 'まちかどマート 高田馬場店',       category: 'コンビニ', area: '高田馬場' },
-      { id: 'w3', name: '個別指導塾ステップアップ 池袋校', category: '塾講師',   area: '池袋' },
-      { id: 'w4', name: '品川ピッキングセンター',          category: '軽作業',   area: '品川' },
+      { id: 'w1', name: 'カフェ・ルミエール 渋谷店',       category: 'カフェ', image: 'img/cafe.svg',   area: '渋谷' },
+      { id: 'w2', name: 'まちかどマート 高田馬場店',       category: 'コンビニ', image: 'img/konbini.svg', area: '高田馬場' },
+      { id: 'w3', name: '個別指導塾ステップアップ 池袋校', category: '塾講師', image: 'img/juku.svg',   area: '池袋' },
+      { id: 'w4', name: '品川ピッキングセンター',          category: '軽作業', image: 'img/soko.svg',   area: '品川' },
     ],
     reviews: [
       rv('r1', 'w1', '2y', '23-25歳', '大学生', [4,4,3,4,4,3], ['月払い','半分くらい','数名','求人サイト経由'],
@@ -419,6 +438,7 @@ function renderList() {
     return '' +
     '<div class="card' + (openId === w.id ? ' open' : '') + '" data-id="' + w.id + '">' +
       '<button class="card-head" data-act="toggle">' +
+        '<img class="thumb" src="' + esc(imageOf(w)) + '" alt="">' +
         '<div class="card-title">' +
           '<div class="name">' + esc(w.name) + flag + '</div>' +
           '<div class="card-meta">' + esc(w.category) + '／' + esc(w.area) + '</div>' +
