@@ -104,21 +104,6 @@
   .summary { font-size: .9rem; }
   .summary ul { margin: 4px 0 0; padding-left: 1.2em; }
 
-  /* ⑤ 投稿フォーム */
-  .grid { display: flex; flex-wrap: wrap; gap: 12px; }
-  .field { flex: 1 1 180px; min-width: 0; }
-  .field > label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: 2px; }
-  .starrow { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-  .starrow .lb { width: 9em; font-size: .85rem; flex-shrink: 0; }
-  .starrow .hint { font-size: .75rem; color: var(--muted); }
-  .star {
-    border: 0; background: none; cursor: pointer; padding: 0 1px;
-    font-size: 1.15rem; color: #d5d8dd; line-height: 1;
-  }
-  .star.on { color: var(--star); }
-  button.primary { padding: 10px 20px; border: 0; border-radius: 5px; background: var(--accent); color: #fff; cursor: pointer; }
-  button.primary:hover { opacity: .88; }
-  .status { margin-left: 12px; font-size: .85rem; color: var(--keep); }
   footer { text-align: center; color: var(--muted); font-size: .8rem; }
   footer button { background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; font-size: .8rem; }
 </style>
@@ -137,54 +122,21 @@
     <p class="sortline" id="sortline"></p>
   </section>
 
-  <!-- ② バイト先の一覧 → ③ 詳細 → ④ 人が決める -->
+  <!-- ② 一覧 → 詳細 → ③ 人が決める -->
   <section>
-    <h2>② バイト先</h2>
+    <h2>② 重視した順に並んだバイト先</h2>
     <p class="note">点数は、勤続期間が長い人の評価ほど重く数えた加重平均です。</p>
     <div id="list" style="margin-top:12px"></div>
   </section>
 
   <section>
-    <h2>あなたの判断</h2>
+    <h2>③ あなたの判断</h2>
     <div class="summary" id="summary"></div>
   </section>
 
-  <!-- ⑤ レビューを投稿する -->
-  <section>
-    <h2>③ レビューを投稿する</h2>
-    <p class="note">属性は「その評価がどれくらい参考になるか」の表示に使います。</p>
-
-    <h3>どのバイト先か</h3>
-    <select id="f-workplace"></select>
-
-    <h3>あなたの属性</h3>
-    <div class="grid">
-      <div class="field"><label for="f-tenure">勤続期間</label><select id="f-tenure"></select></div>
-      <div class="field"><label for="f-age">年齢層</label><select id="f-age"></select></div>
-      <div class="field"><label for="f-role">立場</label><select id="f-role"></select></div>
-    </div>
-
-    <h3>働き方の事実</h3>
-    <div class="grid" id="f-facts"></div>
-    <div class="field" style="margin-top:8px">
-      <label for="f-duties">実際の業務内容（1行）</label>
-      <input type="text" id="f-duties" placeholder="例：レジ、品出し、発注の補助">
-    </div>
-
-    <h3>5段階の評価</h3>
-    <div id="f-ratings"></div>
-
-    <h3>コメント（任意）</h3>
-    <textarea id="f-comment" rows="3" placeholder="これから働く人に伝えたいこと"></textarea>
-
-    <p style="margin:16px 0 0">
-      <button class="primary" id="submit">この内容で投稿する</button>
-      <span class="status" id="status"></span>
-    </p>
-  </section>
-
   <footer>
-    <p>ハッカソン用のモックです。データはこのブラウザの localStorage にだけ保存されます。<br>
+    <p>今はバイトを探す人の画面だけです。レビューの投稿はこのあと追加します。<br>
+      ハッカソン用のモックなので、データはこのブラウザの localStorage にだけ保存されます。<br>
       <button id="reset">保存内容をリセットしてデモデータに戻す</button></p>
   </footer>
 
@@ -195,8 +147,9 @@
 // 決めたこと（CLAUDE.md と対応）
 //   ・保存は localStorage のキー 'app-data' 1つにまとめる
 //   ・画面は index.html の1枚だけ
-//   ・動線は1本： ①重視を選ぶ → ②並び替え → ③中身を見る → ④人が決める
-//   ・④ の「気になる／見送る」だけは、アプリが自動で決めない
+//   ・動線は1本： ①重視を選ぶ → ②並び替え → 中身を見る → ③人が決める
+//   ・③ の「気になる／見送る」だけは、アプリが自動で決めない
+//   ・レビューの投稿画面は後回し。項目の定義（下の定数）はそのまま残してある
 // ============================================================
 
 const STORAGE_KEY = 'app-data';
@@ -210,6 +163,7 @@ const TENURES = [
   { v: '6m', label: '半年',      w: 0.7  },
   { v: '3m', label: '3か月未満', w: 0.5  },
 ];
+// AGE_BANDS / ROLES は今は投稿フォーム専用。投稿画面を作るときに使うので消さないこと
 const AGE_BANDS = ['18-19歳', '20-22歳', '23-25歳', '26歳以上'];
 const ROLES     = ['大学生', 'フリーター', '社会人'];
 
@@ -446,7 +400,8 @@ function detailHtml(w, rs) {
     const v = itemAvg(rs, i.key);
     const on = data.focus.includes(i.key);
     return '<div class="barrow">' +
-      '<span class="lb"' + (on ? ' style="font-weight:700"' : '') + '>' + esc(i.label) + '</span>' +
+      '<span class="lb" title="' + esc(i.hint) + '"' + (on ? ' style="font-weight:700"' : '') + '>' +
+        esc(i.label) + '</span>' +
       '<span class="bar"><span class="fill" style="width:' + (v === null ? 0 : v / 5 * 100) + '%"></span></span>' +
       '<span class="vl">' + (v === null ? '—' : v.toFixed(1)) + '</span>' +
     '</div>';
@@ -531,84 +486,6 @@ function renderAll() {
 }
 
 // ============================================================
-// ⑤ 投稿フォーム
-// ============================================================
-
-const draft = { ratings: {} };
-RATING_KEYS.forEach(k => draft.ratings[k] = 3);   // 初期値は真ん中
-
-function opt(v, label) { return '<option value="' + esc(v) + '">' + esc(label ?? v) + '</option>'; }
-
-function buildForm() {
-  document.getElementById('f-workplace').innerHTML =
-    data.workplaces.map(w => opt(w.id, w.name + '（' + w.category + '／' + w.area + '）')).join('');
-  document.getElementById('f-tenure').innerHTML = TENURES.map(t => opt(t.v, t.label)).join('');
-  document.getElementById('f-age').innerHTML    = AGE_BANDS.map(v => opt(v)).join('');
-  document.getElementById('f-role').innerHTML   = ROLES.map(v => opt(v)).join('');
-
-  document.getElementById('f-facts').innerHTML = FACT_FIELDS.map(f =>
-    '<div class="field"><label for="f-' + f.key + '">' + esc(f.label) + '</label>' +
-    '<select id="f-' + f.key + '">' + f.options.map(v => opt(v)).join('') + '</select></div>'
-  ).join('');
-
-  renderStars();
-}
-
-function renderStars() {
-  document.getElementById('f-ratings').innerHTML = RATING_ITEMS.map(i => {
-    const v = draft.ratings[i.key];
-    const stars = [1, 2, 3, 4, 5].map(n =>
-      '<button type="button" class="star' + (n <= v ? ' on' : '') + '" data-item="' + i.key +
-      '" data-value="' + n + '" aria-label="' + esc(i.label) + ' ' + n + '">★</button>'
-    ).join('');
-    return '<div class="starrow"><span class="lb">' + esc(i.label) + '</span>' +
-           '<span>' + stars + '</span><span class="hint">' + esc(i.hint) + '</span></div>';
-  }).join('');
-}
-
-document.getElementById('f-ratings').addEventListener('click', e => {
-  const b = e.target.closest('.star');
-  if (!b) return;
-  draft.ratings[b.dataset.item] = Number(b.dataset.value);
-  renderStars();
-});
-
-document.getElementById('submit').addEventListener('click', () => {
-  const val = id => document.getElementById(id).value;
-  const wid = val('f-workplace');
-
-  const review = {
-    id: 'r' + Date.now(),
-    workplaceId: wid,
-    createdAt: new Date().toISOString().slice(0, 10),
-    author: { tenure: val('f-tenure'), ageBand: val('f-age'), role: val('f-role') },
-    facts: {
-      payCycle:     val('f-payCycle'),
-      studentRatio: val('f-studentRatio'),
-      hiring:       val('f-hiring'),
-      channel:      val('f-channel'),
-      duties:       val('f-duties').trim(),
-    },
-    ratings: { ...draft.ratings },
-    comment: val('f-comment').trim(),
-  };
-
-  data.reviews.push(review);
-  saveData(data);
-
-  // 投稿したバイト先を開いた状態で描き直す（②に反映されたことが見えるように）
-  openId = wid;
-  renderAll();
-
-  document.getElementById('f-duties').value = '';
-  document.getElementById('f-comment').value = '';
-  const status = document.getElementById('status');
-  status.textContent = '投稿しました。上の一覧に反映されています。';
-  setTimeout(() => { status.textContent = ''; }, 4000);
-  document.querySelector('.card[data-id="' + wid + '"]').scrollIntoView({ behavior: 'smooth', block: 'start' });
-});
-
-// ============================================================
 // 操作をまとめて受ける
 // ============================================================
 
@@ -634,7 +511,7 @@ document.getElementById('list').addEventListener('click', e => {
   if (act === 'toggle') {
     openId = (openId === id) ? null : id;
   } else {
-    // ④ 人が決める。同じボタンをもう一度押すと取り消し
+    // ③ 人が決める。同じボタンをもう一度押すと取り消し
     data.decisions[id] = (data.decisions[id] === act) ? undefined : act;
     if (!data.decisions[id]) delete data.decisions[id];
     saveData(data);
@@ -647,7 +524,6 @@ document.getElementById('reset').addEventListener('click', () => {
   data = seed();
   saveData(data);
   openId = null;
-  buildForm();
   renderAll();
 });
 
@@ -655,7 +531,6 @@ document.getElementById('reset').addEventListener('click', () => {
 // 起動
 // ============================================================
 
-buildForm();
 renderAll();
 </script>
 </body>
