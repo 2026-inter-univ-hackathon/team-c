@@ -2,206 +2,211 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>バイトのホンネ</title>
+<link rel="icon" href="img/icon.svg">
+<link rel="apple-touch-icon" href="img/icon.svg">
 <style>
   /* ============================================================
-     見た目。動線が通ってから手を入れる
+     スマホアプリ風の見た目。幅430pxの1カラムに寄せ、
+     PC で開いたときは中央に「端末の中身」が見えるようにする
      ============================================================ */
   :root {
-    --fg: #1a1a1a; --bg: #f6f7f9; --card: #fff;
-    --line: #d8dce2; --muted: #6b7280;
-    --accent: #2b6cb0; --keep: #1d7a4c; --pass: #8a8f98;
-    --star: #e0a11b;
+    --fg: #111418; --sub: #6b7280; --bg: #e9ecf1; --card: #fff;
+    --line: #e6e8ec; --accent: #2b6cb0; --accent-soft: #eaf1f9;
+    --keep: #1d7a4c; --keep-soft: #e6f4ec; --pass: #8a8f98; --star: #e8a91b;
+    --shadow: 0 1px 2px rgba(16,24,40,.05), 0 1px 3px rgba(16,24,40,.08);
+    --bar: 58px;
   }
   * { box-sizing: border-box; }
+  html, body { height: 100%; }
   body {
-    font-family: "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
-    color: var(--fg); background: var(--bg);
-    margin: 0; padding: 20px 16px 64px; line-height: 1.6;
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+    line-height: 1.55; -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
   }
-  main { max-width: 820px; margin: 0 auto; }
-  h1 { font-size: 1.4rem; margin: 0 0 4px; }
-  .lead { color: var(--muted); margin: 0 0 20px; }
-  section { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
-  h2 { font-size: 1rem; margin: 0 0 4px; }
-  h3 { font-size: .85rem; margin: 16px 0 6px; color: var(--muted); font-weight: 700; letter-spacing: .02em; }
-  .note { color: var(--muted); font-size: .8rem; margin: 6px 0 0; }
-  input, textarea, button, select { font: inherit; }
-  input[type=text], textarea, select { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 5px; background: #fff; }
-  textarea { resize: vertical; }
+  button { font: inherit; color: inherit; cursor: pointer; }
 
-  /* ① 重視することを選ぶ */
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  /* 端末の画面にあたる部分 */
+  .app {
+    max-width: 430px; margin: 0 auto; min-height: 100%;
+    background: var(--card); box-shadow: 0 0 40px rgba(16,24,40,.10);
+    padding-bottom: calc(var(--bar) + 32px);   /* 下の判断バーに隠れないように */
+  }
+
+  /* 上部バー（タイトル＋絞り込みまでを1つの固定ヘッダにする） */
+  .appbar {
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(255,255,255,.94); backdrop-filter: saturate(180%) blur(12px);
+    border-bottom: 1px solid var(--line); padding: 12px 14px 10px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .applogo { width: 34px; height: 34px; border-radius: 9px; display: block; }
+  .appbar h1 { font-size: 1.05rem; margin: 0; letter-spacing: .01em; }
+  .appbar .tag { margin: 1px 0 0; font-size: .72rem; color: var(--sub); }
+  .appbar .ask { margin: 10px 0 0; font-size: .8rem; font-weight: 700; }
+  .chips {
+    display: flex; gap: 8px; margin-top: 8px;
+    overflow-x: auto; scrollbar-width: none; padding-bottom: 2px;
+  }
+  .chips::-webkit-scrollbar { display: none; }
   .chip {
-    padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px;
-    background: #fff; color: var(--fg); cursor: pointer;
+    flex: 0 0 auto; padding: 7px 14px; border: 1px solid var(--line);
+    border-radius: 999px; background: #f5f6f8; font-size: .82rem;
   }
-  .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .chip:disabled { opacity: .4; cursor: not-allowed; }
-  .sortline { margin-top: 12px; font-size: .85rem; color: var(--muted); }
-  .sortline b { color: var(--fg); }
+  .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+  .chip:disabled { opacity: .35; }
+  .sortline { margin: 8px 0 0; font-size: .72rem; color: var(--sub); }
+  .sortline b { color: var(--accent); }
 
-  /* ② バイト先カード */
-  .card { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 12px; background: #fff; overflow: hidden; }
-  .card.open { border-color: var(--accent); }
+  /* 一覧 */
+  .body { padding: 12px 12px 0; }
+  .note { color: var(--sub); font-size: .72rem; margin: 0 2px 10px; }
+  h3 { font-size: .72rem; margin: 14px 0 6px; color: var(--sub); font-weight: 700; }
+
+  .card {
+    background: #fff; border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: var(--shadow); margin-bottom: 10px; overflow: hidden;
+  }
+  .card.open { border-color: #c9dcf0; box-shadow: 0 2px 10px rgba(43,108,176,.13); }
   .card-head {
-    display: flex; align-items: center; gap: 12px; width: 100%;
-    padding: 14px; border: 0; background: none; text-align: left; cursor: pointer;
+    display: flex; gap: 10px; align-items: center; width: 100%;
+    padding: 12px; background: none; border: 0; text-align: left;
   }
-  .card-head:hover { background: #f9fafb; }
-  .card-title { flex: 1; min-width: 0; }
-  .card-title .name { font-weight: 700; font-size: 1.02rem; }
-  .card-meta { font-size: .8rem; color: var(--muted); }
+  .card-head:active { background: #f6f7f9; }
   .thumb {
-    width: 88px; height: 88px; flex-shrink: 0;
-    border-radius: 10px; object-fit: cover; background: #eceef1;
+    flex: 0 0 auto; width: 56px; height: 56px; border-radius: 12px;
+    display: block; object-fit: cover; background: #eef0f3;
   }
-  .rating-line { display: flex; align-items: center; gap: 6px; font-size: .85rem; margin-top: 2px; }
-  .rating-line .num { font-weight: 700; color: #5f6368; }
-  .rating-line .cnt { color: var(--muted); font-size: .8rem; }
-  .hero { width: 100%; height: 150px; object-fit: cover; display: block; border-radius: 8px; margin-top: 12px; }
+  .hero { width: 100%; height: 130px; object-fit: cover; display: block; border-radius: 12px; margin-top: 10px; }
+  .card-title { flex: 1; min-width: 0; }
+  .card-title .name { font-weight: 700; font-size: .95rem; }
+  .card-meta { font-size: .72rem; color: var(--sub); margin-top: 1px; }
   .pills { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-  .pill { font-size: .75rem; padding: 2px 8px; border-radius: 999px; background: #eef1f5; color: #444; }
-  .pill.pay { background: #e7f2ea; color: #1d7a4c; }
-  .stars { color: var(--star); letter-spacing: 1px; font-size: .9rem; }
-  .stars .off { color: #d5d8dd; }
-  .flag { font-size: .75rem; padding: 2px 8px; border-radius: 4px; margin-left: 8px; }
-  .flag.keep { background: #e7f2ea; color: var(--keep); }
+  .pill { font-size: .68rem; padding: 2px 8px; border-radius: 999px; background: #f1f3f6; color: #4b5563; }
+  .pill.pay { background: var(--keep-soft); color: var(--keep); font-weight: 700; }
+  .score {
+    flex: 0 0 auto; text-align: center; background: var(--accent-soft);
+    border-radius: 12px; padding: 7px 9px; min-width: 60px;
+  }
+  .score .num { font-size: 1.25rem; font-weight: 800; color: var(--accent); line-height: 1.15; }
+  .score .cnt { font-size: .62rem; color: var(--sub); }
+  .stars { font-size: .6rem; letter-spacing: .5px; color: var(--star); }
+  .stars .off { color: #dcdfe4; }
+  .flag { font-size: .65rem; padding: 1px 7px; border-radius: 999px; margin-left: 6px; vertical-align: 1px; }
+  .flag.keep { background: var(--keep-soft); color: var(--keep); }
   .flag.pass { background: #eceef1; color: var(--pass); }
 
-  /* 詳細 */
-  .detail { padding: 0 14px 14px; border-top: 1px solid var(--line); }
-  .cols { display: flex; flex-wrap: wrap; gap: 24px; }
-  .cols > div { flex: 1 1 260px; min-width: 0; }
-  .barrow { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: .85rem; }
-  .barrow .lb { width: 8.5em; flex-shrink: 0; }
-  .bar { flex: 1; height: 8px; background: #eceef1; border-radius: 4px; overflow: hidden; }
-  .bar .fill { height: 100%; background: var(--accent); }
-  .barrow .vl { width: 2.4em; text-align: right; color: var(--muted); }
-  .factrow { font-size: .85rem; margin-bottom: 4px; }
-  .factrow .fl { color: var(--muted); }
+  /* 開いたあとの中身 */
+  .detail { padding: 2px 12px 12px; border-top: 1px solid var(--line); }
+  .cols > div { min-width: 0; }
+  .barrow { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; font-size: .78rem; }
+  .barrow .lb { width: 7.5em; flex-shrink: 0; }
+  .bar { flex: 1; height: 7px; background: #eef0f3; border-radius: 4px; overflow: hidden; }
+  .bar .fill { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+  .barrow .vl { width: 2.2em; text-align: right; color: var(--sub); font-variant-numeric: tabular-nums; }
+  .factrow { font-size: .78rem; margin-bottom: 4px; }
+  .factrow .fl { color: var(--sub); }
   .factrow .fv { font-weight: 700; }
-  .factrow .fb { color: var(--muted); font-size: .78rem; }
-  .duties { margin: 0; padding-left: 1.2em; font-size: .85rem; }
+  .factrow .fb { color: var(--sub); font-size: .7rem; }
+  .duties { margin: 0; padding-left: 1.1em; font-size: .78rem; }
 
-  /* レビュー1件 */
-  .review { border-top: 1px dashed var(--line); padding: 10px 0; }
-  .badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-  .badge { font-size: .75rem; padding: 2px 8px; border-radius: 4px; background: #eef1f5; color: #444; }
-  .trust { font-size: .75rem; padding: 2px 8px; border-radius: 4px; font-weight: 700; }
-  .trust.hi { background: #e7f2ea; color: var(--keep); }
+  .review { border-top: 1px solid #f0f2f5; padding: 10px 0; }
+  .badges { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+  .badge { font-size: .66rem; padding: 2px 7px; border-radius: 5px; background: #f1f3f6; color: #4b5563; }
+  .trust { font-size: .66rem; padding: 2px 7px; border-radius: 5px; font-weight: 700; }
+  .trust.hi { background: var(--keep-soft); color: var(--keep); }
   .trust.mid { background: #fdf3e0; color: #a06a06; }
   .trust.lo { background: #eceef1; color: var(--pass); }
-  .review .cmt { margin: 6px 0 0; font-size: .9rem; }
-  .review .rt { margin: 4px 0 0; font-size: .78rem; color: var(--muted); }
+  .review .cmt { margin: 6px 0 0; font-size: .84rem; }
+  .review .rt { margin: 4px 0 0; font-size: .68rem; color: var(--sub); }
 
-  /* ④ 人が決める */
-  .decide { margin-top: 16px; padding: 12px; background: #f6f7f9; border-radius: 8px; }
-  .decide p { margin: 0 0 8px; font-size: .9rem; }
-  .decide .btns { display: flex; gap: 8px; }
-  button.act { padding: 8px 16px; border: 1px solid var(--line); border-radius: 5px; background: #fff; cursor: pointer; }
-  button.act:hover { background: #f0f2f5; }
+  /* 最後に人が決めるところ */
+  .decide { margin-top: 14px; padding: 12px; background: #f7f8fa; border-radius: 12px; }
+  .decide p { margin: 0 0 10px; font-size: .8rem; }
+  .decide .btns { display: flex; gap: 10px; }
+  button.act {
+    flex: 1; padding: 12px 0; border: 1px solid var(--line); border-radius: 10px;
+    background: #fff; font-weight: 700; font-size: .88rem;
+  }
+  button.act:active { transform: scale(.98); }
   button.act[aria-pressed="true"].keep { background: var(--keep); border-color: var(--keep); color: #fff; }
   button.act[aria-pressed="true"].pass { background: var(--pass); border-color: var(--pass); color: #fff; }
 
-  /* 判断のまとめ */
-  .summary { font-size: .9rem; }
-  .summary ul { margin: 4px 0 0; padding-left: 1.2em; }
-
-  /* ⑤ 投稿フォーム */
-  .grid { display: flex; flex-wrap: wrap; gap: 12px; }
-  .field { flex: 1 1 180px; min-width: 0; }
-  .field > label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: 2px; }
-  .starrow { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-  .starrow .lb { width: 9em; font-size: .85rem; flex-shrink: 0; }
-  .starrow .hint { font-size: .75rem; color: var(--muted); }
-  .star {
-    border: 0; background: none; cursor: pointer; padding: 0 1px;
-    font-size: 1.15rem; color: #d5d8dd; line-height: 1;
+  /* 下に貼りつく「あなたの判断」 */
+  .sheet {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 430px; z-index: 30; background: #fff;
+    border-top: 1px solid var(--line); border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 18px rgba(16,24,40,.10);
+    padding-bottom: env(safe-area-inset-bottom);
   }
-  .star.on { color: var(--star); }
-  button.primary { padding: 10px 20px; border: 0; border-radius: 5px; background: var(--accent); color: #fff; cursor: pointer; }
-  button.primary:hover { opacity: .88; }
-  .status { margin-left: 12px; font-size: .85rem; color: var(--keep); }
-  footer { text-align: center; color: var(--muted); font-size: .8rem; }
-  footer button { background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; font-size: .8rem; }
+  .sheet-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; height: var(--bar); padding: 0 16px; background: none; border: 0;
+  }
+  .sheet-bar .ttl { font-size: .85rem; font-weight: 700; }
+  .sheet-bar .cnt { font-size: .72rem; color: var(--sub); font-weight: 400; margin-left: 8px; }
+  .caret { color: var(--sub); font-size: .7rem; transition: transform .2s; }
+  .sheet.open .caret { transform: rotate(180deg); }
+  .sheet-body { max-height: 0; overflow: hidden; padding: 0 16px; transition: max-height .22s ease; }
+  .sheet.open .sheet-body { max-height: 46vh; overflow-y: auto; padding-bottom: 16px; }
+  .summary { font-size: .84rem; }
+  .summary ul { margin: 4px 0 0; padding-left: 1.1em; }
+
+  .foot { color: var(--sub); font-size: .68rem; text-align: center; padding: 8px 16px 20px; }
+  .foot button { background: none; border: 0; color: var(--sub); text-decoration: underline; font-size: .68rem; padding: 4px; }
 </style>
 </head>
 <body>
-<main>
+<div class="app">
 
-  <h1>バイトのホンネ</h1>
-  <p class="lead">働く側の声で「このバイト、自分に合うか」を判断する。求人票に載らない雰囲気・シフト・支払いを、<b>誰が言っているか</b>つきで見る。</p>
-
-  <!-- ① 重視することを選ぶ -->
-  <section>
-    <h2>① 何を重視しますか？</h2>
-    <p class="note">最大3つまで。選んだ項目だけで並び替えます（選ばなければ全項目の平均）。</p>
+  <header class="appbar">
+    <div class="brand">
+      <img class="applogo" src="img/icon.svg" alt="">
+      <div>
+        <h1>バイトのホンネ</h1>
+        <p class="tag">働く側の声で「自分に合うか」を決める</p>
+      </div>
+    </div>
+    <p class="ask">何を重視する？<span style="font-weight:400;color:var(--sub)">（最大3つ）</span></p>
     <div class="chips" id="chips"></div>
     <p class="sortline" id="sortline"></p>
-  </section>
+  </header>
 
-  <!-- ② バイト先の一覧 → ③ 詳細 → ④ 人が決める -->
-  <section>
-    <h2>② バイト先</h2>
-    <p class="note">点数は、勤続期間が長い人の評価ほど重く数えた加重平均です。</p>
-    <div id="list" style="margin-top:12px"></div>
-  </section>
+  <div class="body">
+    <p class="note">点数は、勤続期間が長い人の評価ほど重く数えた加重平均です。タップすると中身が開きます。</p>
+    <div id="list"></div>
+  </div>
 
-  <section>
-    <h2>あなたの判断</h2>
-    <div class="summary" id="summary"></div>
-  </section>
+  <p class="foot">
+    今はバイトを探す人の画面だけです。レビューの投稿はこのあと追加します。<br>
+    データはこのブラウザにだけ保存されるモックです。写真はイメージです（Unsplash）。<br>
+    <button id="reset">保存内容をリセットしてデモデータに戻す</button>
+  </p>
 
-  <!-- ⑤ レビューを投稿する -->
-  <section>
-    <h2>③ レビューを投稿する</h2>
-    <p class="note">属性は「その評価がどれくらい参考になるか」の表示に使います。</p>
+  <!-- 人が決めた結果は、いつでも見えるように下に貼りつけておく -->
+  <div class="sheet" id="sheet">
+    <button class="sheet-bar" id="sheet-toggle">
+      <span><span class="ttl">あなたの判断</span><span class="cnt" id="sheet-count"></span></span>
+      <span class="caret">▲</span>
+    </button>
+    <div class="sheet-body"><div class="summary" id="summary"></div></div>
+  </div>
 
-    <h3>どのバイト先か</h3>
-    <select id="f-workplace"></select>
-
-    <h3>あなたの属性</h3>
-    <div class="grid">
-      <div class="field"><label for="f-tenure">勤続期間</label><select id="f-tenure"></select></div>
-      <div class="field"><label for="f-age">年齢層</label><select id="f-age"></select></div>
-      <div class="field"><label for="f-role">立場</label><select id="f-role"></select></div>
-    </div>
-
-    <h3>働き方の事実</h3>
-    <div class="grid" id="f-facts"></div>
-    <div class="field" style="margin-top:8px">
-      <label for="f-duties">実際の業務内容（1行）</label>
-      <input type="text" id="f-duties" placeholder="例：レジ、品出し、発注の補助">
-    </div>
-
-    <h3>5段階の評価</h3>
-    <div id="f-ratings"></div>
-
-    <h3>コメント（任意）</h3>
-    <textarea id="f-comment" rows="3" placeholder="これから働く人に伝えたいこと"></textarea>
-
-    <p style="margin:16px 0 0">
-      <button class="primary" id="submit">この内容で投稿する</button>
-      <span class="status" id="status"></span>
-    </p>
-  </section>
-
-  <footer>
-    <p>ハッカソン用のモックです。データはこのブラウザの localStorage にだけ保存されます。写真はイメージです（Unsplash）。<br>
-      <button id="reset">保存内容をリセットしてデモデータに戻す</button></p>
-  </footer>
-
-</main>
-
+</div>
 <script>
 // ============================================================
 // 決めたこと（CLAUDE.md と対応）
 //   ・保存は localStorage のキー 'app-data' 1つにまとめる
 //   ・画面は index.html の1枚だけ
-//   ・動線は1本： ①重視を選ぶ → ②並び替え → ③中身を見る → ④人が決める
-//   ・④ の「気になる／見送る」だけは、アプリが自動で決めない
+//   ・動線は1本： ①重視を選ぶ → ②並び替え → 中身を見る → ③人が決める
+//   ・③ の「気になる／見送る」だけは、アプリが自動で決めない
+//   ・レビューの投稿画面は後回し。項目の定義（下の定数）はそのまま残してある
 // ============================================================
 
 const STORAGE_KEY = 'app-data';
@@ -215,8 +220,20 @@ const TENURES = [
   { v: '6m', label: '半年',      w: 0.7  },
   { v: '3m', label: '3か月未満', w: 0.5  },
 ];
+// AGE_BANDS / ROLES は今は投稿フォーム専用。投稿画面を作るときに使うので消さないこと
 const AGE_BANDS = ['18-19歳', '20-22歳', '23-25歳', '26歳以上'];
 const ROLES     = ['大学生', 'フリーター', '社会人'];
+
+// バイト先の画像。img/ に同梱した写真を使う（外部URLは参照しない。オフラインでも出るように）
+// 写真は Unsplash（同梱済み）。カテゴリ外の店だけ自前 SVG にフォールバック
+const CATEGORY_IMG = {
+  'カフェ':   'img/cafe.jpg',
+  'コンビニ': 'img/conv.jpg',
+  '塾講師':   'img/juku.jpg',
+  '軽作業':   'img/wh.jpg',
+};
+// CATEGORY_IMG を先に見る（過去に localStorage へ保存された古い image パスに引きずられないように）
+const imageOf = w => CATEGORY_IMG[w.category] || w.image || 'img/other.svg';
 
 // 事実項目。平均は取らず、そのまま並べて見せる
 const FACT_FIELDS = [
@@ -253,10 +270,10 @@ function seed() {
   });
   return {
     workplaces: [
-      { id: 'w1', name: 'カフェ・ルミエール 渋谷店',       category: 'カフェ',   area: '渋谷' },
-      { id: 'w2', name: 'まちかどマート 高田馬場店',       category: 'コンビニ', area: '高田馬場' },
-      { id: 'w3', name: '個別指導塾ステップアップ 池袋校', category: '塾講師',   area: '池袋' },
-      { id: 'w4', name: '品川ピッキングセンター',          category: '軽作業',   area: '品川' },
+      { id: 'w1', name: 'カフェ・ルミエール 渋谷店',       category: 'カフェ', image: 'img/cafe.jpg', area: '渋谷' },
+      { id: 'w2', name: 'まちかどマート 高田馬場店',       category: 'コンビニ', image: 'img/conv.jpg', area: '高田馬場' },
+      { id: 'w3', name: '個別指導塾ステップアップ 池袋校', category: '塾講師', image: 'img/juku.jpg', area: '池袋' },
+      { id: 'w4', name: '品川ピッキングセンター',          category: '軽作業', image: 'img/wh.jpg',   area: '品川' },
     ],
     reviews: [
       rv('r1', 'w1', '2y', '23-25歳', '大学生', [4,4,3,4,4,3], ['月払い','半分くらい','数名','求人サイト経由'],
@@ -344,15 +361,6 @@ function overallScore(reviews, keys) {
   return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
 }
 
-// 業種ごとの写真（img/ に同梱。オフラインでも表示される）
-const PHOTOS = {
-  'カフェ':   'img/cafe.jpg',
-  'コンビニ': 'img/conv.jpg',
-  '塾講師':   'img/juku.jpg',
-  '軽作業':   'img/wh.jpg',
-};
-const photoOf = w => PHOTOS[w.category] || '';
-
 function reviewsOf(data, workplaceId) {
   return data.reviews.filter(r => r.workplaceId === workplaceId);
 }
@@ -436,20 +444,20 @@ function renderList() {
     return '' +
     '<div class="card' + (openId === w.id ? ' open' : '') + '" data-id="' + w.id + '">' +
       '<button class="card-head" data-act="toggle">' +
+        '<img class="thumb" src="' + esc(imageOf(w)) + '" alt="">' +
         '<div class="card-title">' +
           '<div class="name">' + esc(w.name) + flag + '</div>' +
-          '<div class="rating-line">' +
-            '<span class="num">' + (score === null ? '—' : score.toFixed(1)) + '</span>' +
-            (score === null ? '' : starsHtml(score)) +
-            '<span class="cnt">（' + rs.length + '件）</span>' +
-          '</div>' +
-          '<div class="card-meta">' + esc(w.category) + '・' + esc(w.area) + '</div>' +
+          '<div class="card-meta">' + esc(w.category) + '／' + esc(w.area) + '</div>' +
           '<div class="pills">' +
             (pay ? '<span class="pill pay">' + esc(pay[0]) + '</span>' : '') +
             (stu ? '<span class="pill">大学生 ' + esc(stu[0]) + '</span>' : '') +
           '</div>' +
         '</div>' +
-        (photoOf(w) ? '<img class="thumb" src="' + photoOf(w) + '" alt="' + esc(w.category) + 'のイメージ写真">' : '') +
+        '<div class="score">' +
+          '<div class="num">' + (score === null ? '—' : score.toFixed(1)) + '</div>' +
+          (score === null ? '' : starsHtml(score)) +
+          '<div class="cnt">' + rs.length + '件</div>' +
+        '</div>' +
       '</button>' +
       (openId === w.id ? detailHtml(w, rs) : '') +
     '</div>';
@@ -461,7 +469,8 @@ function detailHtml(w, rs) {
     const v = itemAvg(rs, i.key);
     const on = data.focus.includes(i.key);
     return '<div class="barrow">' +
-      '<span class="lb"' + (on ? ' style="font-weight:700"' : '') + '>' + esc(i.label) + '</span>' +
+      '<span class="lb" title="' + esc(i.hint) + '"' + (on ? ' style="font-weight:700"' : '') + '>' +
+        esc(i.label) + '</span>' +
       '<span class="bar"><span class="fill" style="width:' + (v === null ? 0 : v / 5 * 100) + '%"></span></span>' +
       '<span class="vl">' + (v === null ? '—' : v.toFixed(1)) + '</span>' +
     '</div>';
@@ -499,7 +508,7 @@ function detailHtml(w, rs) {
   const dec = data.decisions[w.id];
 
   return '<div class="detail">' +
-    (photoOf(w) ? '<img class="hero" src="' + photoOf(w) + '" alt="' + esc(w.category) + 'のイメージ写真">' : '') +
+    '<img class="hero" src="' + esc(imageOf(w)) + '" alt="' + esc(w.category) + 'のイメージ写真">' +
     '<div class="cols">' +
       '<div>' +
         '<h3>項目別の評価</h3>' + bars +
@@ -522,21 +531,24 @@ function detailHtml(w, rs) {
   '</div>';
 }
 
-// 人が押した結果のまとめ
+// 人が押した結果のまとめ（下に貼りついたシートの中身）
 function renderSummary() {
-  const box = document.getElementById('summary');
-  const name = id => (data.workplaces.find(w => w.id === id) || {}).name || id;
-  const keep = Object.keys(data.decisions).filter(k => data.decisions[k] === 'keep');
-  const pass = Object.keys(data.decisions).filter(k => data.decisions[k] === 'pass');
+  const box   = document.getElementById('summary');
+  const count = document.getElementById('sheet-count');
+  const name  = id => (data.workplaces.find(w => w.id === id) || {}).name || id;
+  const keep  = Object.keys(data.decisions).filter(k => data.decisions[k] === 'keep');
+  const pass  = Object.keys(data.decisions).filter(k => data.decisions[k] === 'pass');
 
   if (!keep.length && !pass.length) {
-    box.innerHTML = '<p class="note" style="margin:0">まだ何も決めていません。カードを開いて「気になる／見送る」を押すと、ここに残ります。</p>';
+    count.textContent = 'まだ決めていません';
+    box.innerHTML = '<p class="note" style="margin:0">カードを開いて「気になる／見送る」を押すと、ここに残ります。</p>';
     return;
   }
+  count.textContent = '気になる ' + keep.length + '・見送り ' + pass.length;
   box.innerHTML =
     (keep.length ? '<div><b>気になる（' + keep.length + '）</b><ul>' +
       keep.map(id => '<li>' + esc(name(id)) + '</li>').join('') + '</ul></div>' : '') +
-    (pass.length ? '<div style="margin-top:8px"><b>見送る（' + pass.length + '）</b><ul>' +
+    (pass.length ? '<div style="margin-top:10px"><b>見送る（' + pass.length + '）</b><ul>' +
       pass.map(id => '<li>' + esc(name(id)) + '</li>').join('') + '</ul></div>' : '');
 }
 
@@ -545,84 +557,6 @@ function renderAll() {
   renderList();
   renderSummary();
 }
-
-// ============================================================
-// ⑤ 投稿フォーム
-// ============================================================
-
-const draft = { ratings: {} };
-RATING_KEYS.forEach(k => draft.ratings[k] = 3);   // 初期値は真ん中
-
-function opt(v, label) { return '<option value="' + esc(v) + '">' + esc(label ?? v) + '</option>'; }
-
-function buildForm() {
-  document.getElementById('f-workplace').innerHTML =
-    data.workplaces.map(w => opt(w.id, w.name + '（' + w.category + '／' + w.area + '）')).join('');
-  document.getElementById('f-tenure').innerHTML = TENURES.map(t => opt(t.v, t.label)).join('');
-  document.getElementById('f-age').innerHTML    = AGE_BANDS.map(v => opt(v)).join('');
-  document.getElementById('f-role').innerHTML   = ROLES.map(v => opt(v)).join('');
-
-  document.getElementById('f-facts').innerHTML = FACT_FIELDS.map(f =>
-    '<div class="field"><label for="f-' + f.key + '">' + esc(f.label) + '</label>' +
-    '<select id="f-' + f.key + '">' + f.options.map(v => opt(v)).join('') + '</select></div>'
-  ).join('');
-
-  renderStars();
-}
-
-function renderStars() {
-  document.getElementById('f-ratings').innerHTML = RATING_ITEMS.map(i => {
-    const v = draft.ratings[i.key];
-    const stars = [1, 2, 3, 4, 5].map(n =>
-      '<button type="button" class="star' + (n <= v ? ' on' : '') + '" data-item="' + i.key +
-      '" data-value="' + n + '" aria-label="' + esc(i.label) + ' ' + n + '">★</button>'
-    ).join('');
-    return '<div class="starrow"><span class="lb">' + esc(i.label) + '</span>' +
-           '<span>' + stars + '</span><span class="hint">' + esc(i.hint) + '</span></div>';
-  }).join('');
-}
-
-document.getElementById('f-ratings').addEventListener('click', e => {
-  const b = e.target.closest('.star');
-  if (!b) return;
-  draft.ratings[b.dataset.item] = Number(b.dataset.value);
-  renderStars();
-});
-
-document.getElementById('submit').addEventListener('click', () => {
-  const val = id => document.getElementById(id).value;
-  const wid = val('f-workplace');
-
-  const review = {
-    id: 'r' + Date.now(),
-    workplaceId: wid,
-    createdAt: new Date().toISOString().slice(0, 10),
-    author: { tenure: val('f-tenure'), ageBand: val('f-age'), role: val('f-role') },
-    facts: {
-      payCycle:     val('f-payCycle'),
-      studentRatio: val('f-studentRatio'),
-      hiring:       val('f-hiring'),
-      channel:      val('f-channel'),
-      duties:       val('f-duties').trim(),
-    },
-    ratings: { ...draft.ratings },
-    comment: val('f-comment').trim(),
-  };
-
-  data.reviews.push(review);
-  saveData(data);
-
-  // 投稿したバイト先を開いた状態で描き直す（②に反映されたことが見えるように）
-  openId = wid;
-  renderAll();
-
-  document.getElementById('f-duties').value = '';
-  document.getElementById('f-comment').value = '';
-  const status = document.getElementById('status');
-  status.textContent = '投稿しました。上の一覧に反映されています。';
-  setTimeout(() => { status.textContent = ''; }, 4000);
-  document.querySelector('.card[data-id="' + wid + '"]').scrollIntoView({ behavior: 'smooth', block: 'start' });
-});
 
 // ============================================================
 // 操作をまとめて受ける
@@ -650,7 +584,7 @@ document.getElementById('list').addEventListener('click', e => {
   if (act === 'toggle') {
     openId = (openId === id) ? null : id;
   } else {
-    // ④ 人が決める。同じボタンをもう一度押すと取り消し
+    // ③ 人が決める。同じボタンをもう一度押すと取り消し
     data.decisions[id] = (data.decisions[id] === act) ? undefined : act;
     if (!data.decisions[id]) delete data.decisions[id];
     saveData(data);
@@ -658,12 +592,15 @@ document.getElementById('list').addEventListener('click', e => {
   renderAll();
 });
 
+document.getElementById('sheet-toggle').addEventListener('click', () => {
+  document.getElementById('sheet').classList.toggle('open');
+});
+
 document.getElementById('reset').addEventListener('click', () => {
   if (!confirm('投稿と判断をすべて消して、デモデータに戻します。よろしいですか？')) return;
   data = seed();
   saveData(data);
   openId = null;
-  buildForm();
   renderAll();
 });
 
@@ -671,7 +608,6 @@ document.getElementById('reset').addEventListener('click', () => {
 // 起動
 // ============================================================
 
-buildForm();
 renderAll();
 </script>
 </body>
