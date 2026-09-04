@@ -28,7 +28,7 @@
 
 - **今動いているもの**: `main` に全部入っている。スマホアプリ風の1カラム（幅430px）で、探す人の画面だけ。①重視チップ → ②写真サムネ＋業種絵文字のカード（加重平均で並び替え） → 開くとスコア・事実・レビュー → ③下に貼りつく「あなたの判断」シート
 - **今やりかけのこと**: なし。`dev/wataru` と `polish/mobile-ui` は `main` に合流済み
-- **次にやること**: **レビューの投稿画面**（項目定義 `TENURES` / `AGE_BANDS` / `ROLES` / `FACT_FIELDS` / `RATING_ITEMS` と保存処理は残してある）。あとは GitHub Pages の有効化（Settings → Pages → `main` / `/ (root)`）
+- **次にやること**: **レビューの投稿画面**（項目定義 `TENURES` / `AGE_BANDS` / `ROLES` / `FACT_FIELDS` / `RATING_ITEMS` と保存処理は残してある）。GitHub Pages は有効化済み（`main` / root、URL: https://2026-inter-univ-hackathon.github.io/team-c/ ）。`main` に push すれば数十秒で反映される
 - **ハマっていること**: `index.html` 1枚に全員が書くので、同時に触るとコンフリクトする。作業前に `git pull` すること
 
 ---
