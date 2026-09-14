@@ -298,6 +298,28 @@ UserとOrganizationの関係。主キーは`(organization_id, user_id)`、Role�
 
 ### 6.5 口コミ系
 
+#### 投稿コンテンツとしての境界
+
+Reviewは、投稿者・本文・公開状態・作成日時を持つ点ではブログやSNSの投稿と同じ性質を持つ。一方で、対象店舗、勤務経験、質問回答、評価値を持つため、汎用的な`contents`や`posts`へ抽象化せず、店舗口コミを表すAggregate Rootとして扱う。
+
+```text
+Review（Aggregate Root）
+├─ 投稿としての共通情報
+│  ├─ author
+│  ├─ summary
+│  ├─ status
+│  └─ created_at / updated_at
+└─ 店舗口コミ固有の情報
+   ├─ store
+   ├─ employment
+   ├─ review_answers
+   └─ review_ratings
+```
+
+Reviewの作成・編集・削除は必ずReview Use Caseを経由する。Review AnswerやReview Ratingを単独で外部公開・更新しない。投稿時にはReview、Answers、Ratingsを1トランザクションで保存する。
+
+ブログ記事や通常のSNS投稿を実際に扱う要件が追加されるまでは、共通親テーブルを作らない。
+
 #### review_forms / review_questions
 
 投稿時の質問構成をVersion管理する。公開済みFormは変更せず、新しいVersionを作成する。Questionは`UNIQUE(review_form_id, code)`とする。
@@ -319,6 +341,19 @@ Statusは`PUBLISHED / HIDDEN / DELETED`、Employment Statusは`CURRENT / FORMER`
 #### review_ratings
 
 主キーは`(review_id, rating_dimension_id)`。`score`には1～5のCHECK制約を設定する。
+
+#### 将来の投稿機能
+
+SNS的な機能が必要になった場合は、Reviewを参照する独立テーブルとして追加する。
+
+| 将来テーブル | 用途 | 主な一意制約 |
+|---|---|---|
+| review_comments | Reviewへのコメント・返信 | id |
+| review_reactions | いいね等のリアクション | `(review_id, user_id, reaction_type)` |
+| review_bookmarks | ユーザーの保存 | `(review_id, user_id)` |
+| review_reports | 不適切なReviewの通報 | 要件確定時に定義 |
+
+これらは初期Migrationへ含めない。複数種類の投稿に同じ機能を提供することが確定した場合に限り、共通Contentモデルへの再設計を検討する。
 
 ### 6.6 削除ルール
 
@@ -379,6 +414,7 @@ SESSION_SECRET=
 - Google OAuth等の外部認証
 - AI口コミ分析、自然言語検索、Embedding、pgvector
 - 画像アップロード
+- コメント、リアクション、ブックマーク
 - 通報・本格モデレーション
 - デプロイ・本番インフラ設計
 - Nativeアプリ向けAPI

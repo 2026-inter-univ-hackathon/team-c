@@ -104,9 +104,11 @@ RatingDimension ── ReviewRating
 | Organization | 企業や店舗運営主体 |
 | OrganizationMembership | Userの組織所属と組織内Role |
 | Store / Category | 店舗情報／店舗の業種分類 |
-| Review | 投稿者・店舗・勤務情報・一言コメント |
+| Review | 店舗口コミのAggregate Root。投稿者・店舗・勤務情報・一言コメント・公開状態を管理 |
 | ReviewForm / Question / Answer | Version管理された質問と回答 |
 | RatingDimension / ReviewRating | 可変の評価軸と評価値 |
+
+Reviewは投稿コンテンツとしてブログやSNSと共通する性質を持つが、店舗・勤務経験・評価を持つ固有ドメインであるため、MVPでは汎用`Content`や`Post`へ抽象化しない。将来コメント、リアクション、通報等が必要になった場合はReviewを参照する周辺Entityとして追加する。
 
 ## 6. サーバー処理構成（Resource単位）
 
