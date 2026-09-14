@@ -18,7 +18,7 @@ MVPは単一のTypeScriptアプリとして構築する。画面から使う処�
 | TanStack | Router / Query / Form | ルーティング、非同期データ、フォームを統一 |
 | UI | Tailwind CSS / shadcn/ui | 短期間でレスポンシブUIを構築しやすい |
 | Validation | Zod | Server Functionsを含む全外部入力を実行時検証 |
-| DB | PostgreSQL / Drizzle ORM | スキーマとDBアクセスをTypeScriptで管理 |
+| DB | PostgreSQL 18 / Drizzle ORM | UUIDv7、スキーマ、DBアクセスを一元管理 |
 | Auth（初期） | HTTP Basic認証＋固定テストユーザー | 機能開発中のアクセス制限と権限確認に限定 |
 | Test | Vitest / Playwright | ロジックと主要ユーザーフローを検証 |
 | Tooling | pnpm / ESLint / Prettier | 一般的な構成に統一し保守しやすくする |
@@ -93,6 +93,7 @@ Organization ── Store ── Review
 Organization ── OrganizationMembership ── User
 User ── AuthAccount / Session / Review
 ReviewForm ── ReviewQuestion ── ReviewAnswer
+ReviewForm ── ReviewFormRatingDimension ── RatingDimension
 RatingDimension ── ReviewRating
 ```
 
@@ -106,6 +107,7 @@ RatingDimension ── ReviewRating
 | Store / Category | 店舗情報／店舗の業種分類 |
 | Review | 店舗口コミのAggregate Root。投稿者・店舗・勤務情報・一言コメント・公開状態を管理 |
 | ReviewForm / Question / Answer | Version管理された質問と回答 |
+| ReviewFormRatingDimension | Formごとに利用する評価軸・表示順・必須設定 |
 | RatingDimension / ReviewRating | 可変の評価軸と評価値 |
 
 Reviewは投稿コンテンツとしてブログやSNSと共通する性質を持つが、店舗・勤務経験・評価を持つ固有ドメインであるため、MVPでは汎用`Content`や`Post`へ抽象化しない。将来コメント、リアクション、通報等が必要になった場合はReviewを参照する周辺Entityとして追加する。
@@ -144,6 +146,7 @@ AI検索・口コミ分析・Embeddingは初期実装に含めない。口コミ
 - **Pagination**：店舗一覧・口コミ一覧で必須（一括取得しない）
 - **Cache**：TanStack Queryでリスト・詳細をキャッシュ、投稿/編集後は再取得
 - **Index**：Review→Store／Review→User／Store→Organization／OrganizationMembership関連にIndex
+- **ID**：単独主キーはPostgreSQL 18の`uuidv7()`でDB側生成
 
 ### MVPでは導入しない
 外部OAuth／AI API／pgvector／Redis／Elasticsearch／Kafka等のMQ／マイクロサービス化／複雑なキャッシュ層 — 必要性が確認されてから導入する。
