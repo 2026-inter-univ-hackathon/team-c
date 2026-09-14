@@ -123,12 +123,96 @@ Basic認証 → テストユーザー選択 → アプリ内セッション → 
 
 ### 6.2 ER図
 
-```text
-users ──< auth_identities
-  │
-  ├──< sessions
-  ├──< reviews >── stores >── companies
-  └──< company_members >─────────┘
+```mermaid
+erDiagram
+    USERS ||--o{ AUTH_IDENTITIES : has
+    USERS ||--o{ SESSIONS : has
+    USERS ||--o{ REVIEWS : writes
+    USERS ||--o{ COMPANY_MEMBERS : belongs
+    COMPANIES ||--o{ COMPANY_MEMBERS : has
+    COMPANIES ||--o{ STORES : owns
+    STORES ||--o{ REVIEWS : receives
+
+    USERS {
+        uuid id PK
+        varchar email UK
+        varchar display_name
+        text avatar_url
+        varchar role
+        varchar status
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    AUTH_IDENTITIES {
+        uuid id PK
+        uuid user_id FK
+        varchar provider
+        varchar provider_user_id
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    SESSIONS {
+        uuid id PK
+        uuid user_id FK
+        varchar token_hash UK
+        timestamptz expires_at
+        timestamptz created_at
+        timestamptz last_seen_at
+    }
+
+    COMPANIES {
+        uuid id PK
+        varchar name
+        varchar status
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    COMPANY_MEMBERS {
+        uuid id PK
+        uuid company_id FK
+        uuid user_id FK
+        varchar member_role
+        timestamptz created_at
+    }
+
+    STORES {
+        uuid id PK
+        uuid company_id FK
+        varchar name
+        varchar industry
+        varchar prefecture
+        varchar city
+        varchar address
+        varchar status
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    REVIEWS {
+        uuid id PK
+        uuid store_id FK
+        uuid user_id FK
+        smallint employment_start_year
+        smallint employment_end_year
+        varchar employment_status
+        smallint overall_rating
+        smallint atmosphere_rating
+        smallint relationship_rating
+        smallint training_rating
+        smallint workload_rating
+        text beginner_trap
+        text reaction_to_mistake
+        text busiest_moment
+        text hidden_reality
+        text advice_for_newcomer
+        varchar summary
+        varchar status
+        timestamptz created_at
+        timestamptz updated_at
+    }
 ```
 
 ### 6.3 users
@@ -330,4 +414,3 @@ SESSION_SECRET=
 - 通報・本格モデレーション
 - デプロイ・本番インフラ設計
 - Nativeアプリ向けAPI
-
