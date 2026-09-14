@@ -1,8 +1,14 @@
 # アルバイト口コミWebアプリ 開発設計書
 
-## 1. 目的
+## 1. 目的と設計原則
 
-本書はMVPを実装するための技術構成、コード配置、認証・認可、DB設計を定義する。初期段階では機能開発を優先し、デプロイとAI機能は対象外とする。
+本書はMVP実装の技術構成、認証・認可、DB設計を定義する。初期段階では機能開発を優先し、デプロイとAI機能は対象外とする。
+
+- ユーザーを種類別のテーブルへ分割しない
+- 認証方法、プラットフォーム権限、組織内権限を分離する
+- 質問や評価軸を追加してもテーブル変更を不要にする
+- 画面やRouteからDBを直接操作しない
+- 変更が予想される箇所だけを分離し、過度に汎用化しない
 
 ## 2. 技術スタック
 
@@ -11,178 +17,185 @@
 | Full-stack | TanStack Start |
 | Language | TypeScript（strict） |
 | UI | React / Tailwind CSS / shadcn/ui |
-| Routing | TanStack Router |
-| Server state | TanStack Query |
-| Form | TanStack Form |
+| Routing / State / Form | TanStack Router / Query / Form |
 | Validation | Zod |
 | Database | PostgreSQL |
 | ORM / Migration | Drizzle ORM / Drizzle Kit |
-| Authentication | 開発用HTTP Basic認証＋アプリ内セッション |
-| Unit test | Vitest |
-| E2E test | Playwright |
+| Authentication | 開発用HTTP Basic認証＋アプリ内Session |
+| Test | Vitest / Playwright |
 | Package manager | pnpm |
 
-単一のTanStack Startアプリとして構築し、独立したBackendやモノレポは設けない。
+単一のTanStack Startアプリとして構築し、独立Backendやモノレポは設けない。
 
 ## 3. アプリケーション構成
 
 ```text
-Browser
-  ↓
-TanStack Start
-  ├─ Routes / UI
-  ├─ Server Functions
-  ├─ AuthAdapter / Authorization Policy
-  ├─ Use Cases
-  └─ Drizzle ORM
-        ↓
-    PostgreSQL
+Browser → TanStack Start
+             ├─ Routes / UI
+             ├─ Server Functions
+             ├─ AuthAdapter / Authorization Policy
+             ├─ Use Cases
+             └─ Drizzle ORM → PostgreSQL
 ```
 
-画面からのみ使う処理はServer Functionsとして実装する。外部クライアント向けAPIが必要になった場合だけServer Routesを追加し、同じUse Caseを呼び出す。
+画面から使う処理はServer Functionsとする。外部APIが必要になった場合だけServer Routesを追加し、同じUse Caseを呼び出す。
 
 ## 4. ディレクトリ構成
 
 ```text
 src/
-├─ routes/                 # TanStack RouterのRoute
+├─ routes/
 ├─ features/
 │  ├─ auth/
 │  ├─ stores/
 │  ├─ reviews/
 │  ├─ profile/
-│  └─ companies/
-├─ components/             # 複数Featureで使うUI
+│  └─ organizations/
+├─ components/
 ├─ server/
-│  ├─ auth/                # AuthAdapterと認可処理
-│  ├─ use-cases/           # 業務処理
-│  └─ errors/              # 共通エラー
+│  ├─ auth/
+│  ├─ authorization/
+│  ├─ use-cases/
+│  └─ errors/
 ├─ db/
-│  ├─ schema/              # Drizzle schema
+│  ├─ schema/
 │  ├─ migrations/
 │  ├─ seed.ts
 │  └─ client.ts
-├─ schemas/                # 共有Zod schema
-└─ lib/                    # 副作用を持たない共通処理
+├─ schemas/
+└─ lib/
 ```
 
-RouteからDrizzleを直接呼ばず、Server FunctionからUse Caseを経由してDBへアクセスする。
+依存方向は`Route → Server Function → Use Case → Repository/DB`とする。
 
-## 5. 認証・認可
+## 5. 認証・認可設計
 
-### 5.1 基本方針
+### 5.1 概念の分離
 
-認証方式と業務ロジックを分離する。業務処理がBasic認証、Google OAuth等の具体的な方式を判定してはならない。
+| 概念 | 管理対象 |
+|---|---|
+| User | サービスを利用する人 |
+| AuthAccount | Basic、Google等の本人確認手段 |
+| Session | ログイン状態 |
+| PlatformRole | サービス全体に対する管理権限 |
+| OrganizationMembership | 組織への所属と組織内権限 |
+
+一般利用者であることはRoleではない。有効なUserは店舗閲覧や口コミ投稿ができる。同じUserが口コミを投稿しながら、複数組織の管理者になることも許容する。
+
+### 5.2 認証境界
 
 ```ts
-type AuthenticatedUser = {
+type AuthenticatedPrincipal = {
   userId: string
-  role: "USER" | "COMPANY" | "ADMIN"
+  sessionId: string
 }
 
 interface AuthAdapter {
-  authenticate(request: Request): Promise<AuthenticatedUser | null>
+  authenticate(request: Request): Promise<AuthenticatedPrincipal | null>
 }
 ```
 
-初期実装は`BasicAuthAdapter`とする。Basic認証は開発環境への入口として使用し、通過後に固定テストユーザーを選択してアプリ内セッションを発行する。
+`AuthAdapter`は本人を特定するだけで権限を返さない。Authorization PolicyがDB上のPlatformRoleとOrganizationMembershipから権限を判定する。
 
-```text
-Basic認証 → テストユーザー選択 → アプリ内セッション → 認可判定
-```
+初期実装ではBasic認証通過後に固定テストUserを選択し、アプリ内Sessionを発行する。将来Google OAuthを追加する場合はAuthAccountを追加して既存Userへ紐づける。Review等の業務テーブルは変更しない。
 
-将来は`GoogleAuthAdapter`等を追加する。外部サービスのユーザーIDは`auth_identities`でアプリ内の`users.id`に紐づけるため、Reviews等の業務テーブルは変更しない。
-
-### 5.2 認可ルール
+### 5.3 認可ルール
 
 | 操作 | 条件 |
 |---|---|
-| 店舗・口コミ閲覧 | 認証済みユーザー |
-| 口コミ投稿 | USERまたはADMIN |
-| 口コミ編集・削除 | 投稿者本人またはADMIN |
-| 企業ダッシュボード | COMPANYまたはADMIN |
-| 企業の店舗情報閲覧 | 対象企業のCompanyMemberまたはADMIN |
-| 管理操作 | ADMIN |
+| 店舗・口コミ閲覧、口コミ投稿 | ACTIVEなUser |
+| 口コミ編集・削除 | 投稿者本人またはPlatform ADMIN |
+| 組織ダッシュボード | 対象組織のMembership保有者またはPlatform ADMIN |
+| 店舗管理 | 対象組織でOWNERまたはMANAGER |
+| サービス全体の管理 | Platform ADMIN |
 
-- 未認証は`401 Unauthorized`
-- 権限不足は`403 Forbidden`
-- Basic認証の資格情報は環境変数で管理し、DBへ保存しない
-- アプリ内セッショントークンはCookieへ`HttpOnly`、`SameSite=Lax`で保存する
-- DBにはセッショントークンのハッシュだけを保存する
+- 未認証は`401`、権限不足は`403`
+- Basic認証資格情報は環境変数で管理し、DBへ保存しない
+- Session Cookieは`HttpOnly`、`SameSite=Lax`
+- DBにはSession Tokenのハッシュだけを保存する
 
 ## 6. DB設計
 
 ### 6.1 共通方針
 
-- 主キーはUUIDを使用する
-- 日時は`timestamp with time zone`を使用する
-- テーブル名・カラム名は`snake_case`とする
-- 外部キーを持つカラムには原則Indexを付与する
-- Roleなど選択肢が増える可能性のある値は、DB enumではなく`varchar`＋CHECK制約で管理する
-- 物理削除が必要な場合は参照関係を確認し、原則としてユーザー操作では論理削除を使用する
+- 主キーはUUID、日時は`timestamptz`、名前は`snake_case`
+- 外部キーカラムには原則Indexを付与する
+- RoleやStatusは`varchar`＋CHECK制約で管理する
+- 口コミや店舗は原則論理削除する
+- 認証情報ではなく、必ず`users.id`を業務データの参照先にする
 
 ### 6.2 ER図
 
 ```mermaid
 erDiagram
-    USERS ||--o{ AUTH_IDENTITIES : has
+    USERS ||--o{ AUTH_ACCOUNTS : authenticates_with
     USERS ||--o{ SESSIONS : has
-    USERS ||--o{ REVIEWS : writes
-    USERS ||--o{ COMPANY_MEMBERS : belongs
-    COMPANIES ||--o{ COMPANY_MEMBERS : has
-    COMPANIES ||--o{ STORES : owns
+    USERS ||--o{ PLATFORM_ROLE_ASSIGNMENTS : receives
+    PLATFORM_ROLES ||--o{ PLATFORM_ROLE_ASSIGNMENTS : defines
+    USERS ||--o{ ORGANIZATION_MEMBERSHIPS : joins
+    ORGANIZATIONS ||--o{ ORGANIZATION_MEMBERSHIPS : has
+    ORGANIZATIONS ||--o{ STORES : owns
+    STORES ||--o{ STORE_CATEGORIES : classified_as
+    CATEGORIES ||--o{ STORE_CATEGORIES : classifies
     STORES ||--o{ REVIEWS : receives
+    USERS ||--o{ REVIEWS : writes
+    REVIEW_FORMS ||--o{ REVIEW_QUESTIONS : contains
+    REVIEW_FORMS ||--o{ REVIEWS : structures
+    REVIEWS ||--o{ REVIEW_ANSWERS : contains
+    REVIEW_QUESTIONS ||--o{ REVIEW_ANSWERS : answers
+    RATING_DIMENSIONS ||--o{ REVIEW_RATINGS : defines
+    REVIEWS ||--o{ REVIEW_RATINGS : contains
 
     USERS {
         uuid id PK
         varchar email UK
         varchar display_name
         text avatar_url
-        varchar role
         varchar status
         timestamptz created_at
         timestamptz updated_at
     }
-
-    AUTH_IDENTITIES {
+    AUTH_ACCOUNTS {
         uuid id PK
         uuid user_id FK
         varchar provider
         varchar provider_user_id
         timestamptz created_at
-        timestamptz updated_at
     }
-
     SESSIONS {
         uuid id PK
         uuid user_id FK
         varchar token_hash UK
         timestamptz expires_at
         timestamptz created_at
-        timestamptz last_seen_at
     }
-
-    COMPANIES {
+    PLATFORM_ROLES {
+        uuid id PK
+        varchar code UK
+        varchar name
+    }
+    PLATFORM_ROLE_ASSIGNMENTS {
+        uuid user_id FK
+        uuid platform_role_id FK
+        timestamptz created_at
+    }
+    ORGANIZATIONS {
         uuid id PK
         varchar name
         varchar status
         timestamptz created_at
         timestamptz updated_at
     }
-
-    COMPANY_MEMBERS {
-        uuid id PK
-        uuid company_id FK
+    ORGANIZATION_MEMBERSHIPS {
+        uuid organization_id FK
         uuid user_id FK
-        varchar member_role
+        varchar role
         timestamptz created_at
     }
-
     STORES {
         uuid id PK
-        uuid company_id FK
+        uuid organization_id FK
         varchar name
-        varchar industry
         varchar prefecture
         varchar city
         varchar address
@@ -190,199 +203,156 @@ erDiagram
         timestamptz created_at
         timestamptz updated_at
     }
-
+    CATEGORIES {
+        uuid id PK
+        varchar code UK
+        varchar name
+        boolean is_active
+    }
+    STORE_CATEGORIES {
+        uuid store_id FK
+        uuid category_id FK
+    }
+    REVIEW_FORMS {
+        uuid id PK
+        integer version UK
+        varchar status
+        timestamptz created_at
+    }
+    REVIEW_QUESTIONS {
+        uuid id PK
+        uuid review_form_id FK
+        varchar code
+        varchar label
+        varchar answer_type
+        integer display_order
+        boolean is_required
+    }
+    RATING_DIMENSIONS {
+        uuid id PK
+        varchar code UK
+        varchar label
+        integer display_order
+        boolean is_active
+    }
     REVIEWS {
         uuid id PK
         uuid store_id FK
         uuid user_id FK
+        uuid review_form_id FK
         smallint employment_start_year
         smallint employment_end_year
         varchar employment_status
-        smallint overall_rating
-        smallint atmosphere_rating
-        smallint relationship_rating
-        smallint training_rating
-        smallint workload_rating
-        text beginner_trap
-        text reaction_to_mistake
-        text busiest_moment
-        text hidden_reality
-        text advice_for_newcomer
         varchar summary
         varchar status
         timestamptz created_at
         timestamptz updated_at
     }
+    REVIEW_ANSWERS {
+        uuid review_id FK
+        uuid review_question_id FK
+        text answer_text
+    }
+    REVIEW_RATINGS {
+        uuid review_id FK
+        uuid rating_dimension_id FK
+        smallint score
+    }
 ```
 
-### 6.3 users
+### 6.3 Identity・権限系
 
-認証方式に依存しないアプリ内ユーザーを保持する。
+#### users
 
-| カラム | 型 | 制約・説明 |
+全利用者の共通情報。`role`は持たない。`email`は小文字へ正規化してUniqueとし、Statusは`ACTIVE / SUSPENDED / DELETED`とする。
+
+#### auth_accounts
+
+認証ProviderとUserの紐づけ。`UNIQUE(provider, provider_user_id)`と`UNIQUE(user_id, provider)`を設定する。
+
+#### sessions
+
+`user_id`、`token_hash`、`expires_at`、`created_at`を保持し、User削除時はCASCADEする。
+
+#### platform_roles / platform_role_assignments
+
+サービス全体の権限を管理する。初期Roleは`ADMIN`のみ。Assignmentの主キーは`(user_id, platform_role_id)`とする。
+
+### 6.4 組織・店舗系
+
+#### organizations
+
+企業や運営法人など、店舗を所有する主体を表す。
+
+#### organization_memberships
+
+UserとOrganizationの関係。主キーは`(organization_id, user_id)`、Roleは`OWNER / MANAGER / VIEWER`とする。Userは複数Organizationへ所属できる。
+
+#### stores
+
+`organization_id`、店舗名、都道府県、市区町村、住所、Statusを持つ。口コミがある店舗は物理削除せず`INACTIVE`にする。
+
+#### categories / store_categories
+
+業種分類をマスタ化する。店舗とCategoryは多対多で、関連テーブルの主キーは`(store_id, category_id)`とする。
+
+### 6.5 口コミ系
+
+#### review_forms / review_questions
+
+投稿時の質問構成をVersion管理する。公開済みFormは変更せず、新しいVersionを作成する。Questionは`UNIQUE(review_form_id, code)`とする。
+
+#### rating_dimensions
+
+`overall`、`atmosphere`、`relationship`、`training`、`workload`等の評価軸を管理する。評価軸追加時にReviewsの変更は不要。
+
+#### reviews
+
+口コミの主体と勤務情報だけを保持する。主なIndexは`store_id`、`user_id`、`(store_id, status, created_at DESC)`とする。
+
+Statusは`PUBLISHED / HIDDEN / DELETED`、Employment Statusは`CURRENT / FORMER`。開始年は終了年以下とする。
+
+#### review_answers
+
+主キーは`(review_id, review_question_id)`。QuestionとReviewが同じReviewFormに属することをUse Caseで検証する。
+
+#### review_ratings
+
+主キーは`(review_id, rating_dimension_id)`。`score`には1～5のCHECK制約を設定する。
+
+### 6.6 削除ルール
+
+| 親 | 子 | 方針 |
 |---|---|---|
-| id | uuid | PK |
-| email | varchar(320) | NOT NULL、UNIQUE、小文字へ正規化 |
-| display_name | varchar(100) | NOT NULL |
-| avatar_url | text | NULL可 |
-| role | varchar(20) | NOT NULL、`USER / COMPANY / ADMIN` |
-| status | varchar(20) | NOT NULL、`ACTIVE / SUSPENDED / DELETED` |
-| created_at | timestamptz | NOT NULL |
-| updated_at | timestamptz | NOT NULL |
+| User | AuthAccount / Session | CASCADE |
+| User | Review | Userを論理削除しReviewは保持 |
+| Organization | Membership | CASCADE |
+| Organization | Store | Organizationを論理削除しStoreは保持 |
+| Review | Answer / Rating | CASCADE |
+| ReviewForm | Question | 公開済みは削除禁止 |
+| Category / RatingDimension | 利用データ | 物理削除せず無効化 |
 
-Index：`email`のUnique Index、`role`、`status`
+### 6.7 初期データ
 
-### 6.4 auth_identities
+Seedで一般User、組織Owner、Platform ADMINを作成する。全員を`users`へ保存し、権限の違いはPlatformRoleとOrganizationMembershipで表現する。
 
-外部認証とアプリ内ユーザーの対応を保持する。Basic認証では使用せず、Google等の導入時に使用する。
-
-| カラム | 型 | 制約・説明 |
-|---|---|---|
-| id | uuid | PK |
-| user_id | uuid | FK → users.id、NOT NULL |
-| provider | varchar(50) | NOT NULL、例：`google` |
-| provider_user_id | varchar(255) | NOT NULL、Provider側の不変ID |
-| created_at | timestamptz | NOT NULL |
-| updated_at | timestamptz | NOT NULL |
-
-制約：`UNIQUE(provider, provider_user_id)`、`UNIQUE(user_id, provider)`
-
-削除：User削除時にCASCADE
-
-### 6.5 sessions
-
-認証後のアプリ内セッションを保持する。
-
-| カラム | 型 | 制約・説明 |
-|---|---|---|
-| id | uuid | PK |
-| user_id | uuid | FK → users.id、NOT NULL |
-| token_hash | varchar(255) | NOT NULL、UNIQUE |
-| expires_at | timestamptz | NOT NULL |
-| created_at | timestamptz | NOT NULL |
-| last_seen_at | timestamptz | NULL可 |
-
-Index：`user_id`、`expires_at`
-
-削除：User削除時にCASCADE。期限切れセッションは定期的またはログイン時に削除する。
-
-### 6.6 companies
-
-企業情報を保持する。
-
-| カラム | 型 | 制約・説明 |
-|---|---|---|
-| id | uuid | PK |
-| name | varchar(200) | NOT NULL |
-| status | varchar(20) | NOT NULL、`ACTIVE / INACTIVE` |
-| created_at | timestamptz | NOT NULL |
-| updated_at | timestamptz | NOT NULL |
-
-Index：`name`
-
-### 6.7 company_members
-
-企業ユーザーと企業の所属関係を保持する。
-
-| カラム | 型 | 制約・説明 |
-|---|---|---|
-| id | uuid | PK |
-| company_id | uuid | FK → companies.id、NOT NULL |
-| user_id | uuid | FK → users.id、NOT NULL |
-| member_role | varchar(20) | NOT NULL、初期値`MEMBER` |
-| created_at | timestamptz | NOT NULL |
-
-制約：`UNIQUE(company_id, user_id)`
-
-Index：`company_id`、`user_id`
-
-削除：CompanyまたはUser削除時にCASCADE
-
-### 6.8 stores
-
-口コミの対象となる店舗を保持する。
-
-| カラム | 型 | 制約・説明 |
-|---|---|---|
-| id | uuid | PK |
-| company_id | uuid | FK → companies.id、NOT NULL |
-| name | varchar(200) | NOT NULL |
-| industry | varchar(100) | NOT NULL |
-| prefecture | varchar(20) | NOT NULL |
-| city | varchar(100) | NOT NULL |
-| address | varchar(255) | NULL可 |
-| status | varchar(20) | NOT NULL、`ACTIVE / INACTIVE` |
-| created_at | timestamptz | NOT NULL |
-| updated_at | timestamptz | NOT NULL |
-
-Index：`company_id`、`name`、`industry`、`(prefecture, city)`、`status`
-
-削除：口コミが存在する店舗は物理削除せず`INACTIVE`にする。
-
-### 6.9 reviews
-
-勤務経験と口コミ回答を保持する。
-
-| カラム | 型 | 制約・説明 |
-|---|---|---|
-| id | uuid | PK |
-| store_id | uuid | FK → stores.id、NOT NULL |
-| user_id | uuid | FK → users.id、NOT NULL |
-| employment_start_year | smallint | NULL可 |
-| employment_end_year | smallint | NULL可、在職中はNULL |
-| employment_status | varchar(20) | NOT NULL、`CURRENT / FORMER` |
-| overall_rating | smallint | NOT NULL、1～5 |
-| atmosphere_rating | smallint | NOT NULL、1～5 |
-| relationship_rating | smallint | NOT NULL、1～5 |
-| training_rating | smallint | NOT NULL、1～5 |
-| workload_rating | smallint | NOT NULL、1～5 |
-| beginner_trap | text | NOT NULL |
-| reaction_to_mistake | text | NOT NULL |
-| busiest_moment | text | NOT NULL |
-| hidden_reality | text | NOT NULL |
-| advice_for_newcomer | text | NOT NULL |
-| summary | varchar(500) | NOT NULL |
-| status | varchar(20) | NOT NULL、`PUBLISHED / HIDDEN / DELETED` |
-| created_at | timestamptz | NOT NULL |
-| updated_at | timestamptz | NOT NULL |
-
-制約：各Ratingは`CHECK (rating BETWEEN 1 AND 5)`、開始年は終了年以下
-
-Index：`store_id`、`user_id`、`status`、`(store_id, status, created_at DESC)`
-
-削除：ユーザー操作では`DELETED`へ変更する。通常の一覧・集計は`PUBLISHED`のみ対象とする。
-
-### 6.10 初期データ
-
-開発環境ではSeedで以下を作成する。
-
-| ユーザー | Role | 用途 |
-|---|---|---|
-| user@test.local | USER | 一般ユーザー操作 |
-| company@test.local | COMPANY | 企業画面操作 |
-| admin@test.local | ADMIN | 管理操作 |
-
-併せてCompany、CompanyMember、Store、Reviewの確認用データを投入する。Seedは開発・テスト環境だけで実行可能にする。
+併せてOrganization、Store、Category、ReviewForm、Question、RatingDimension、Reviewの確認用データを投入する。Seedは開発・テスト環境だけで実行可能にする。
 
 ## 7. Server Function設計
-
-Server Functionは次の順序で処理する。
 
 ```text
 認証 → Zod検証 → 認可 → Use Case → DB → Response
 ```
 
-主な処理単位：
-
-| Feature | 処理 |
+| Feature | 主な処理 |
 |---|---|
-| Auth | テストユーザー選択、セッション取得、ログアウト |
+| Auth | テストUser選択、Session取得、ログアウト |
 | Store | 一覧、検索、詳細取得 |
-| Review | 一覧、詳細、投稿、編集、削除 |
+| Review | Form取得、投稿、一覧、詳細、編集、削除 |
 | Profile | 自分の情報、投稿履歴取得 |
-| Company | 所属店舗一覧、店舗別評価・口コミ取得 |
+| Organization | 所属店舗、店舗別評価、口コミ取得 |
 
-DB Entityをそのまま画面へ返さず、必要な項目だけをResponse Schemaで返す。
+DB Entityをそのまま画面へ返さず、Zodで定義したResponse Schemaへ変換する。
 
 ## 8. 環境変数
 
@@ -393,23 +363,21 @@ BASIC_AUTH_PASSWORD=
 SESSION_SECRET=
 ```
 
-- `.env`をGitへ追加しない
-- `.env.example`には値を含めず変数名だけを記載する
-- 起動時にZodで必須環境変数を検証する
+`.env`はGitへ追加しない。`.env.example`には変数名だけを記載し、起動時にZodで検証する。
 
 ## 9. テスト方針
 
-- 認可PolicyはRoleと所有者条件をVitestで網羅する
-- Zod schemaは正常値、境界値、不正値を検証する
-- Use Caseは認証方式に依存させず、テスト用AuthAdapterで検証する
-- PlaywrightでUSERの口コミ投稿とCOMPANYの店舗確認を検証する
-- Migration適用後にSeedを投入し、主要Server Functionの疎通を確認する
+- Authorization PolicyはPlatform Role、Membership、所有者条件をVitestで検証
+- Zod Schemaは正常値、境界値、不正値を検証
+- Use Caseはテスト用AuthAdapterで認証方式から独立して検証
+- ReviewFormのVersionと回答Questionの整合性を検証
+- Playwrightで口コミ投稿と組織ダッシュボードを検証
+- Migration適用後にSeedを投入して主要Server Functionを疎通確認
 
 ## 10. 初期スコープ外
 
 - Google OAuth等の外部認証
-- AI口コミ分析、自然言語検索、Embedding
-- pgvector
+- AI口コミ分析、自然言語検索、Embedding、pgvector
 - 画像アップロード
 - 通報・本格モデレーション
 - デプロイ・本番インフラ設計

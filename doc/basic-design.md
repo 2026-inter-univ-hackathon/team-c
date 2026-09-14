@@ -25,39 +25,39 @@ MVPは単一のTypeScriptアプリとして構築する。画面から使う処�
 
 デプロイ構成、AI API、Embedding、pgvectorは初期スコープに含めない。
 
-## 3. ユーザー種別と権限
+## 3. ユーザーと権限
 
-| 機能 | USER | COMPANY | ADMIN |
-|---|:---:|:---:|:---:|
-| 店舗検索・閲覧 | ○ | ○ | ○ |
-| 口コミ閲覧 | ○ | ○ | ○ |
-| 口コミ投稿・編集 | ○ | × | ○ |
-| 企業ダッシュボード・店舗分析 | × | ○ | ○ |
-| 管理機能 | × | × | ○ |
+全利用者をUserとして扱い、ユーザー種別でテーブルを分割しない。一般利用はACTIVEなUserに許可し、追加権限だけを関係テーブルで表現する。
 
-企業ユーザーは自社に紐づく店舗データのみアクセス可能。ADMIN機能はMVPでは最小限。
+| 機能 | 権限条件 |
+|---|---|
+| 店舗検索・口コミ閲覧・投稿 | ACTIVEなUser |
+| 口コミ編集・削除 | 投稿者本人またはPlatform ADMIN |
+| 組織ダッシュボード | 対象OrganizationのMembership保有者 |
+| 店舗管理 | 対象OrganizationのOWNERまたはMANAGER |
+| 管理機能 | Platform ADMIN |
 
 ### 認証・認可設計
 
 認証（本人確認）と認可（操作権限）を分離する。Routeや業務ロジックからBasic認証を直接参照せず、必ず共通の認証サービスを経由する。
 
 ```ts
-type AuthenticatedUser = {
+type AuthenticatedPrincipal = {
   userId: string
-  role: "USER" | "COMPANY" | "ADMIN"
+  sessionId: string
 }
 
 interface AuthAdapter {
-  authenticate(request: Request): Promise<AuthenticatedUser | null>
+  authenticate(request: Request): Promise<AuthenticatedPrincipal | null>
 }
 ```
 
-初期実装では`BasicAuthAdapter`を使用する。Basic認証を通過した後、開発用の固定ユーザーを選択し、その`userId`と`role`を`AuthenticatedUser`として返す。Basic認証のユーザー名を口コミ投稿者IDとして使用しない。
+初期実装では`BasicAuthAdapter`を使用する。Basic認証を通過した後、開発用の固定Userを選択してSessionを発行する。AuthAdapterは本人を特定するだけで、Roleを返さない。
 
-将来は`GoogleAuthAdapter`等を追加し、環境設定で利用するAdapterを切り替える。Google等の外部IDはアプリ内のUserへ紐づけ、ReviewやCompanyMemberは常にアプリ内の`userId`を参照する。
+将来は`GoogleAuthAdapter`等を追加する。外部IDはAuthAccountを介してUserへ紐づけ、Review等の業務データは常に`users.id`を参照する。
 
 ```text
-Request → AuthAdapter → AuthenticatedUser → Authorization Policy → Use Case
+Request → AuthAdapter → AuthenticatedPrincipal → Authorization Policy → Use Case
               │
               ├─ BasicAuthAdapter（初期）
               └─ GoogleAuthAdapter（将来）
@@ -67,8 +67,8 @@ Request → AuthAdapter → AuthenticatedUser → Authorization Policy → Use C
 
 - 未認証は`401 Unauthorized`
 - 認証済みだが権限不足の場合は`403 Forbidden`
-- Reviewの編集・削除は`review.userId === currentUser.userId`またはADMIN
-- 企業向けデータはCompanyMemberによる所属確認を必須とする
+- Reviewの編集・削除は投稿者本人またはPlatform ADMIN
+- 組織向けデータはOrganizationMembershipによる所属確認を必須とする
 - Basic認証は開発環境限定とし、資格情報は環境変数で管理する
 
 ## 4. 画面構成・遷移
@@ -89,26 +89,29 @@ Step1 勤務情報 → Step2 5段階評価 → Step3 リアルな質問 → Step
 
 ### 主要Entity
 ```
-Company ── Store ── Review
-Company ── CompanyMember ── User
-User ── Review / ReviewLike / UserView
-User ── AuthIdentity
+Organization ── Store ── Review
+Organization ── OrganizationMembership ── User
+User ── AuthAccount / Session / Review
+ReviewForm ── ReviewQuestion ── ReviewAnswer
+RatingDimension ── ReviewRating
 ```
 
 | Entity | 概要 |
 |---|---|
-| User | アプリ内識別子・名前・Email・プロフィール画像・Role。認証方式に依存しない |
-| AuthIdentity | Userと認証元を結ぶ情報（Provider・Provider側ID）。外部認証導入時に使用 |
-| Company | 企業識別子・企業名 |
-| CompanyMember | User⇔Companyの所属関係（中間テーブル、複数企業/Role対応） |
-| Store | 店舗識別子・所属企業・店舗名・業種・所在地 |
-| Review | 投稿者・店舗・5段階評価・勤務情報・自由記述質問群・一言コメント |
-| UserView | 店舗閲覧履歴（将来のレコメンド用） |
+| User | 全利用者共通のアプリ内Identity。Roleを持たない |
+| AuthAccount / Session | 認証方法との紐づけ／ログイン状態 |
+| PlatformRole | サービス全体の管理権限 |
+| Organization | 企業や店舗運営主体 |
+| OrganizationMembership | Userの組織所属と組織内Role |
+| Store / Category | 店舗情報／店舗の業種分類 |
+| Review | 投稿者・店舗・勤務情報・一言コメント |
+| ReviewForm / Question / Answer | Version管理された質問と回答 |
+| RatingDimension / ReviewRating | 可変の評価軸と評価値 |
 
 ## 6. サーバー処理構成（Resource単位）
 
 ```
-/auth  /stores  /reviews  /users  /companies  /search
+/auth  /stores  /reviews  /users  /organizations  /search
 ```
 
 - アプリ画面からの呼び出しはTanStack StartのServer Functionsを使う
@@ -138,16 +141,16 @@ AI検索・口コミ分析・Embeddingは初期実装に含めない。口コミ
 - **投稿保護**：編集・削除時に投稿者IDを照合
 - **Pagination**：店舗一覧・口コミ一覧で必須（一括取得しない）
 - **Cache**：TanStack Queryでリスト・詳細をキャッシュ、投稿/編集後は再取得
-- **Index**：Review→Store／Review→User／Store→Company／CompanyMember関連にIndex
+- **Index**：Review→Store／Review→User／Store→Organization／OrganizationMembership関連にIndex
 
 ### MVPでは導入しない
 外部OAuth／AI API／pgvector／Redis／Elasticsearch／Kafka等のMQ／マイクロサービス化／複雑なキャッシュ層 — 必要性が確認されてから導入する。
 
 ## 10. MVP完成条件（動作フロー）
 
-**一般ユーザー**：Basic認証 → USER選択 → 店舗一覧 → 店舗詳細 → 口コミ確認 → 口コミ投稿 → 投稿確認
+**一般利用**：Basic認証 → 一般テストUser選択 → 店舗一覧 → 店舗詳細 → 口コミ確認 → 口コミ投稿 → 投稿確認
 
-**企業ユーザー**：Basic認証 → COMPANY選択 → 企業Dashboard → 自社店舗選択 → 評価確認 → 口コミ確認
+**組織管理**：Basic認証 → 組織Membershipを持つテストUser選択 → Dashboard → 管理店舗選択 → 評価確認 → 口コミ確認
 
 **認証の交換可能性**：業務ロジックを変更せず、AuthAdapterの差し替えで外部認証を追加できる。
 
