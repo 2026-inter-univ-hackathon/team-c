@@ -1,6 +1,7 @@
 # APIキーなどの資格情報。絶対にコミットしない
 .env
 .env.*
+!.env.example
 *.key
 
 # エディタ・OS
@@ -11,3 +12,10 @@
 # 念のため
 node_modules/
 *.log
+
+# ビルド成果物
+dist/
+.output/
+coverage/
+.pnpm-store/
+
