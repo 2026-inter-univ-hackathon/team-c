@@ -1,10 +1,18 @@
 import { z } from "zod";
 
+const optionalEnvString = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().min(1).optional(),
+);
+
 const envSchema = z.object({
-  DATABASE_URL: z.string().min(1).optional(),
-  BASIC_AUTH_USER: z.string().min(1).optional(),
-  BASIC_AUTH_PASSWORD: z.string().min(1).optional(),
-  SESSION_SECRET: z.string().min(32).optional(),
+  DATABASE_URL: optionalEnvString,
+  BASIC_AUTH_USER: optionalEnvString,
+  BASIC_AUTH_PASSWORD: optionalEnvString,
+  SESSION_SECRET: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(32).optional(),
+  ),
 });
 
 export type ServerEnv = z.infer<typeof envSchema>;
