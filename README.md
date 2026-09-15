@@ -15,6 +15,13 @@
 同じ重さで平均しても意味がないので、**勤続期間で重みづけした加重平均**を点数として出し、
 1件ごとに「参考度 高／中／低」を表示する。「☆4.2（12件）」が、誰の声なのかまで見える。
 
+## 設計ドキュメント
+
+- [要件定義](doc/requirements.md)
+- [基本設計](doc/basic-design.md)
+- [開発設計](doc/development-design.md)
+- [実装ガイド](doc/implementation-guide.md)
+
 ## 使った技術
 
 - TanStack Start / TypeScript / React / Tailwind CSS
