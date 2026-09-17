@@ -9,6 +9,12 @@ export function createPostgresClient(databaseUrl: string) {
   });
 }
 
+export type PostgresClient = ReturnType<typeof createPostgresClient>;
+
+export function createDbFromClient(client: PostgresClient) {
+  return drizzle(client, { schema });
+}
+
 export function createDb(
   databaseUrl = parseServerEnv(process.env).DATABASE_URL,
 ) {
@@ -17,7 +23,7 @@ export function createDb(
   }
 
   const client = createPostgresClient(databaseUrl);
-  return drizzle(client, { schema });
+  return createDbFromClient(client);
 }
 
-export type Db = ReturnType<typeof createDb>;
+export type Db = ReturnType<typeof createDbFromClient>;

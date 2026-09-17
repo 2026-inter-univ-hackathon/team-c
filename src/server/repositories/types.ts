@@ -6,6 +6,13 @@ export type PublicCategory = {
 
 export type EmploymentStatus = "CURRENT" | "FORMER";
 
+export type PublicRatingSummary = {
+  dimensionCode: string;
+  dimensionLabel: string;
+  displayOrder: number;
+  averageScore: number | null;
+};
+
 export type PublicStoreSummary = {
   id: string;
   name: string;
@@ -13,13 +20,14 @@ export type PublicStoreSummary = {
   city: string | null;
   categories: PublicCategory[];
   reviewCount: number;
+  averageRating: number | null;
+  reviewExcerpt: string | null;
 };
 
 export type PublicStoreDetail = PublicStoreSummary & {
   postalCode: string | null;
   address: string | null;
-  latitude: string | null;
-  longitude: string | null;
+  ratingSummary: PublicRatingSummary[];
 };
 
 export type PublicReviewAnswer = {

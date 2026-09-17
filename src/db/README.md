@@ -32,9 +32,13 @@ pnpm run db:studio
 まだ含まれていないもの:
 
 - PostgreSQLコンテナやホスト済みDB環境のセットアップ
-- Repository関数
-- Server Functions / Use Cases
 - 認証・セッション永続化の実装
+
+公開店舗・レビューのRepositoryとUse Caseは実装済みです。店舗一覧・詳細のServer Functionsと `src/server/db.ts` の `withDb` は、現在の作業ツリーに追加されています。`withDb` は処理ごとに接続を作成し、コールバック終了時には成功・失敗にかかわらず接続を終了します。
+
+- [Repository層メモ](../server/repositories/README.md)
+- [Use Case層メモ](../server/use-cases/README.md)
+- [実装状況](../../doc/implementation-status.md)
 
 ## セキュリティメモ
 

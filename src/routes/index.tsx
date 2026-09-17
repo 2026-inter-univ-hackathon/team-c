@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { appInfo } from "../lib/app-info";
 
 export const Route = createFileRoute("/")({
@@ -21,6 +21,14 @@ function Home() {
               働く人の声から、自分に合うアルバイト先を選ぶための口コミWebアプリです。
               まずは実装基盤を固め、設計書に沿って安全に機能を増やしていきます。
             </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link
+                to="/stores"
+                className="rounded bg-sky-700 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-800"
+              >
+                店舗データを見る
+              </Link>
+            </div>
           </div>
 
           <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">

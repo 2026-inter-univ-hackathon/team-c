@@ -1,21 +1,12 @@
-import {
-  and,
-  asc,
-  count,
-  desc,
-  eq,
-  inArray,
-  isNotNull,
-  isNull,
-} from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import type { Db } from "../../db/client";
 import {
   categories,
+  ratingDimensions,
   reviewAnswers,
   reviewQuestions,
   reviewRatings,
   reviews,
-  ratingDimensions,
   storeCategories,
   stores,
 } from "../../db/schema";
@@ -24,6 +15,7 @@ import type {
   NormalizedPublicListOptions,
   PublicCategory,
   PublicListOptions,
+  PublicRatingSummary,
   PublicReview,
   PublicReviewAnswer,
   PublicReviewRating,
@@ -33,6 +25,7 @@ import type {
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
+const REVIEW_EXCERPT_LENGTH = 96;
 
 export function normalizePublicListOptions(
   options: PublicListOptions = {},
@@ -69,16 +62,22 @@ export async function listPublicStores(
     .offset(offset);
 
   const storeIds = rows.map((row) => row.id);
-  const [categoriesByStoreId, reviewCountsByStoreId] = await Promise.all([
+  const [categoriesByStoreId, metricsByStoreId] = await Promise.all([
     listCategoriesByStoreId(db, storeIds),
-    countPublishedReviewsByStoreId(db, storeIds),
+    getStoreMetricsByStoreId(db, storeIds),
   ]);
 
-  return rows.map((row) => ({
-    ...row,
-    categories: categoriesByStoreId.get(row.id) ?? [],
-    reviewCount: reviewCountsByStoreId.get(row.id) ?? 0,
-  }));
+  return rows.map((row) => {
+    const metrics = metricsByStoreId.get(row.id);
+
+    return {
+      ...row,
+      categories: categoriesByStoreId.get(row.id) ?? [],
+      reviewCount: metrics?.reviewCount ?? 0,
+      averageRating: metrics?.averageRating ?? null,
+      reviewExcerpt: metrics?.reviewExcerpt ?? null,
+    };
+  });
 }
 
 export async function getPublicStoreById(
@@ -93,8 +92,6 @@ export async function getPublicStoreById(
       prefecture: stores.prefecture,
       city: stores.city,
       address: stores.address,
-      latitude: stores.latitude,
-      longitude: stores.longitude,
     })
     .from(stores)
     .where(and(eq(stores.id, storeId), activeStoreWhere()))
@@ -104,15 +101,21 @@ export async function getPublicStoreById(
     return null;
   }
 
-  const [categoriesByStoreId, reviewCountsByStoreId] = await Promise.all([
-    listCategoriesByStoreId(db, [row.id]),
-    countPublishedReviewsByStoreId(db, [row.id]),
-  ]);
+  const [categoriesByStoreId, metricsByStoreId, ratingSummary] =
+    await Promise.all([
+      listCategoriesByStoreId(db, [row.id]),
+      getStoreMetricsByStoreId(db, [row.id]),
+      getRatingSummaryByStoreId(db, row.id),
+    ]);
+  const metrics = metricsByStoreId.get(row.id);
 
   return {
     ...row,
     categories: categoriesByStoreId.get(row.id) ?? [],
-    reviewCount: reviewCountsByStoreId.get(row.id) ?? 0,
+    reviewCount: metrics?.reviewCount ?? 0,
+    averageRating: metrics?.averageRating ?? null,
+    reviewExcerpt: metrics?.reviewExcerpt ?? null,
+    ratingSummary,
   };
 }
 
@@ -213,24 +216,147 @@ async function listCategoriesByStoreId(
   return map;
 }
 
-async function countPublishedReviewsByStoreId(
+type StoreMetrics = {
+  reviewCount: number;
+  averageRating: number | null;
+  reviewExcerpt: string | null;
+};
+
+async function getStoreMetricsByStoreId(
   db: Db,
   storeIds: string[],
-): Promise<Map<string, number>> {
+): Promise<Map<string, StoreMetrics>> {
   if (storeIds.length === 0) {
     return new Map();
   }
 
-  const rows = await db
+  const reviewRows = await db
     .select({
       storeId: reviews.storeId,
-      reviewCount: count(reviews.id),
+      reviewId: reviews.id,
+      summary: reviews.summary,
+      publishedAt: reviews.publishedAt,
     })
     .from(reviews)
     .where(and(inArray(reviews.storeId, storeIds), publishedReviewWhere()))
-    .groupBy(reviews.storeId);
+    .orderBy(desc(reviews.publishedAt), desc(reviews.id));
 
-  return new Map(rows.map((row) => [row.storeId, row.reviewCount]));
+  const reviewIds = reviewRows.map((row) => row.reviewId);
+  const ratingRows =
+    reviewIds.length > 0
+      ? await db
+          .select({
+            reviewId: reviewRatings.reviewId,
+            score: reviewRatings.score,
+          })
+          .from(reviewRatings)
+          .where(inArray(reviewRatings.reviewId, reviewIds))
+      : [];
+  const storeIdByReviewId = new Map(
+    reviewRows.map((row) => [row.reviewId, row.storeId]),
+  );
+  const metricDrafts = new Map<
+    string,
+    StoreMetrics & { ratingScoreTotal: number; ratingScoreCount: number }
+  >();
+
+  for (const row of reviewRows) {
+    const draft = metricDrafts.get(row.storeId) ?? {
+      reviewCount: 0,
+      averageRating: null,
+      reviewExcerpt: null,
+      ratingScoreTotal: 0,
+      ratingScoreCount: 0,
+    };
+
+    draft.reviewCount += 1;
+    draft.reviewExcerpt ??= createReviewExcerpt(row.summary);
+    metricDrafts.set(row.storeId, draft);
+  }
+
+  for (const row of ratingRows) {
+    const storeId = storeIdByReviewId.get(row.reviewId);
+
+    if (!storeId) {
+      continue;
+    }
+
+    const draft = metricDrafts.get(storeId);
+
+    if (!draft) {
+      continue;
+    }
+
+    draft.ratingScoreTotal += row.score;
+    draft.ratingScoreCount += 1;
+  }
+
+  return new Map(
+    [...metricDrafts.entries()].map(([storeId, draft]) => [
+      storeId,
+      {
+        reviewCount: draft.reviewCount,
+        averageRating:
+          draft.ratingScoreCount > 0
+            ? roundToOneDecimal(draft.ratingScoreTotal / draft.ratingScoreCount)
+            : null,
+        reviewExcerpt: draft.reviewExcerpt,
+      },
+    ]),
+  );
+}
+
+async function getRatingSummaryByStoreId(
+  db: Db,
+  storeId: string,
+): Promise<PublicRatingSummary[]> {
+  const dimensions = await db
+    .select({
+      id: ratingDimensions.id,
+      code: ratingDimensions.code,
+      label: ratingDimensions.label,
+      displayOrder: ratingDimensions.displayOrder,
+    })
+    .from(ratingDimensions)
+    .where(eq(ratingDimensions.isActive, true))
+    .orderBy(asc(ratingDimensions.displayOrder), asc(ratingDimensions.id));
+
+  const ratingRows = await db
+    .select({
+      dimensionId: reviewRatings.ratingDimensionId,
+      score: reviewRatings.score,
+    })
+    .from(reviewRatings)
+    .innerJoin(reviews, eq(reviewRatings.reviewId, reviews.id))
+    .where(and(eq(reviews.storeId, storeId), publishedReviewWhere()));
+  const scoresByDimensionId = new Map<
+    string,
+    { total: number; count: number }
+  >();
+
+  for (const row of ratingRows) {
+    const draft = scoresByDimensionId.get(row.dimensionId) ?? {
+      total: 0,
+      count: 0,
+    };
+
+    draft.total += row.score;
+    draft.count += 1;
+    scoresByDimensionId.set(row.dimensionId, draft);
+  }
+
+  return dimensions.map((dimension) => {
+    const scores = scoresByDimensionId.get(dimension.id);
+
+    return {
+      dimensionCode: dimension.code,
+      dimensionLabel: dimension.label,
+      displayOrder: dimension.displayOrder,
+      averageScore: scores
+        ? roundToOneDecimal(scores.total / scores.count)
+        : null,
+    };
+  });
 }
 
 async function listAnswersByReviewId(
@@ -318,4 +444,18 @@ function groupRowsByReviewId<T, R>(
   }
 
   return map;
+}
+
+function createReviewExcerpt(summary: string): string {
+  const normalized = summary.trim().replace(/\s+/g, " ");
+
+  if (normalized.length <= REVIEW_EXCERPT_LENGTH) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, REVIEW_EXCERPT_LENGTH)}...`;
+}
+
+function roundToOneDecimal(value: number): number {
+  return Math.round(value * 10) / 10;
 }
