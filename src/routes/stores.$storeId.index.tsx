@@ -11,7 +11,7 @@ import {
   Rating,
 } from "../features/stores/store-ui";
 import { Icon } from "../components/icon";
-export const Route = createFileRoute("/stores/$storeId")({
+export const Route = createFileRoute("/stores/$storeId/")({
   validateSearch: (raw: Record<string, unknown>) => ({
     page: z.coerce.number().int().min(1).max(10000).catch(1).parse(raw.page),
   }),
@@ -153,7 +153,16 @@ function DetailPage() {
                 <p className="eyebrow">REAL VOICES</p>
                 <h2>働いた人のホンネ</h2>
               </div>
-              <span className="small-muted">新しい口コミから表示</span>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="small-muted">新しい口コミから表示</span>
+                <Link
+                  to="/stores/$storeId/reviews/new"
+                  params={{ storeId: store.id }}
+                  className="button primary"
+                >
+                  レビューを書く
+                </Link>
+              </div>
             </div>
             {reviews.length ? (
               reviews.map((review) => (
