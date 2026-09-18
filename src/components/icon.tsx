@@ -2,7 +2,8 @@ export function Icon({
   name,
   size = 20,
 }: {
-  name: "search" | "heart" | "arrow" | "pin" | "star" | "chat" | "shield" | "alert";
+  name:
+    "search" | "heart" | "arrow" | "pin" | "star" | "chat" | "shield" | "alert";
   size?: number;
 }) {
   const paths = {

@@ -1,6 +1,8 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { Icon } from "../components/icon";
-export const Route = createFileRoute("/guidelines")({ component: GuidelinesPage });
+export const Route = createFileRoute("/guidelines")({
+  component: GuidelinesPage,
+});
 function GuidelinesPage() {
   return (
     <main id="main" className="container page-section">
@@ -56,7 +58,9 @@ function GuidelinesPage() {
           <li>
             <strong>個人の人格攻撃・誹謗中傷：</strong>
             事実に基づかない悪意のある非難や、人格を否定するような表現は禁止しております。
-            <span className="guideline-example">NG例：「バカ」「アホ」「無能」など</span>
+            <span className="guideline-example">
+              NG例：「バカ」「アホ」「無能」など
+            </span>
           </li>
           <li>
             <strong>差別的な表現：</strong>
