@@ -2,7 +2,7 @@ export function Icon({
   name,
   size = 20,
 }: {
-  name: "search" | "heart" | "arrow" | "pin" | "star" | "chat";
+  name: "search" | "heart" | "arrow" | "pin" | "star" | "chat" | "shield" | "alert";
   size?: number;
 }) {
   const paths = {
@@ -27,6 +27,16 @@ export function Icon({
     ),
     chat: (
       <path d="M21 11.5a9 9 0 0 1-9 9c-1.5 0-3-.4-4.2-1L3 21l1.5-4.8A9 9 0 1 1 21 11.5Z" />
+    ),
+    shield: (
+      <path d="M12 3.5 4.5 6v6c0 5 3.2 7.9 7.5 8.5 4.3-.6 7.5-3.5 7.5-8.5V6L12 3.5Z" />
+    ),
+    alert: (
+      <>
+        <path d="M12 3.5 2.5 20h19L12 3.5Z" />
+        <path d="M12 10v4" />
+        <path d="M12 17.2v.1" />
+      </>
     ),
   };
   return (

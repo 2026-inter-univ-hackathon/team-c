@@ -25,6 +25,10 @@ export function SiteShell() {
               <Icon name="search" size={18} />
               バイト先を探す
             </Link>
+            <Link to="/guidelines" activeProps={{ className: "active" }}>
+              <Icon name="shield" size={18} />
+              ガイドライン
+            </Link>
             <Link to="/saved" activeProps={{ className: "active" }}>
               <Icon name="heart" size={18} />
               気になる

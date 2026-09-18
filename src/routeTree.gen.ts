@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as GuidelinesRouteImport } from './routes/guidelines'
 import { Route as SavedRouteImport } from './routes/saved'
 import { Route as StoresIndexRouteImport } from './routes/stores.index'
 import { Route as StoresStoreIdIndexRouteImport } from './routes/stores.$storeId.index'
@@ -18,6 +19,11 @@ import { Route as StoresStoreIdReviewsNewRouteImport } from './routes/stores.$st
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuidelinesRoute = GuidelinesRouteImport.update({
+  id: '/guidelines',
+  path: '/guidelines',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SavedRoute = SavedRouteImport.update({
@@ -43,6 +49,7 @@ const StoresStoreIdReviewsNewRoute = StoresStoreIdReviewsNewRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/guidelines': typeof GuidelinesRoute
   '/saved': typeof SavedRoute
   '/stores/': typeof StoresIndexRoute
   '/stores/$storeId/': typeof StoresStoreIdIndexRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/guidelines': typeof GuidelinesRoute
   '/saved': typeof SavedRoute
   '/stores': typeof StoresIndexRoute
   '/stores/$storeId': typeof StoresStoreIdIndexRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/guidelines': typeof GuidelinesRoute
   '/saved': typeof SavedRoute
   '/stores/': typeof StoresIndexRoute
   '/stores/$storeId/': typeof StoresStoreIdIndexRoute
@@ -67,6 +76,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/guidelines'
     | '/saved'
     | '/stores/'
     | '/stores/$storeId/'
@@ -74,6 +84,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/guidelines'
     | '/saved'
     | '/stores'
     | '/stores/$storeId'
@@ -81,6 +92,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/guidelines'
     | '/saved'
     | '/stores/'
     | '/stores/$storeId/'
@@ -89,6 +101,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  GuidelinesRoute: typeof GuidelinesRoute
   SavedRoute: typeof SavedRoute
   StoresIndexRoute: typeof StoresIndexRoute
   StoresStoreIdIndexRoute: typeof StoresStoreIdIndexRoute
@@ -102,6 +115,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guidelines': {
+      id: '/guidelines'
+      path: '/guidelines'
+      fullPath: '/guidelines'
+      preLoaderRoute: typeof GuidelinesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/saved': {
@@ -137,6 +157,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  GuidelinesRoute: GuidelinesRoute,
   SavedRoute: SavedRoute,
   StoresIndexRoute: StoresIndexRoute,
   StoresStoreIdIndexRoute: StoresStoreIdIndexRoute,

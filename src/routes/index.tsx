@@ -176,6 +176,34 @@ function Home() {
           </div>
         </div>
       </section>
+      <section className="container trust-section">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">TRUST &amp; SAFETY</p>
+            <h2>安心して、投稿・閲覧できる場所に。</h2>
+          </div>
+          <Link to="/guidelines" className="text-link">
+            ガイドラインを見る
+            <Icon name="arrow" size={17} />
+          </Link>
+        </div>
+        <div className="trust-grid">
+          <Link to="/guidelines" className="trust-card">
+            <Icon name="shield" size={22} />
+            <h3>「個人特定」を防ぐ仕組み</h3>
+            <p>
+              口コミの少ない店舗の詳細は企業に非開示、投稿日や勤務期間はぼかして表示、企業にはAIによる要約レポートで提供するなど、投稿者が特定されない仕組みを設けています。
+            </p>
+          </Link>
+          <Link to="/guidelines" className="trust-card">
+            <Icon name="alert" size={22} />
+            <h3>名誉棄損・誹謗中傷・個人名晒し</h3>
+            <p>
+              実名や個人を特定できる情報の記載、根拠のない誹謗中傷や差別的な表現などは禁止事項です。該当する投稿は自動伏字化や非表示・削除の対象となります。
+            </p>
+          </Link>
+        </div>
+      </section>
     </main>
   );
 }
