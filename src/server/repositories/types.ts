@@ -65,3 +65,47 @@ export type NormalizedPublicListOptions = {
   limit: number;
   offset: number;
 };
+
+export type ReviewFormQuestion = {
+  id: string;
+  code: string;
+  label: string;
+  displayOrder: number;
+  isRequired: boolean;
+  minLength: number | null;
+  maxLength: number | null;
+};
+
+export type ReviewFormRatingDimension = {
+  id: string;
+  code: string;
+  label: string;
+  displayOrder: number;
+  isRequired: boolean;
+};
+
+export type PublishedReviewForm = {
+  id: string;
+  version: number;
+  questions: ReviewFormQuestion[];
+  dimensions: ReviewFormRatingDimension[];
+};
+
+/** 認証が未実装の間だけ使う、投稿者を選ぶための開発用ユーザー。 */
+export type TestUser = {
+  id: string;
+  displayName: string;
+};
+
+export type CreateReviewRecord = {
+  storeId: string;
+  userId: string;
+  reviewFormId: string;
+  employmentStatus: EmploymentStatus;
+  employmentStartYear: number;
+  employmentEndYear: number | null;
+  publicAuthorLabel: string;
+  summary: string;
+  answers: Array<{ reviewQuestionId: string; answerText: string }>;
+  ratings: Array<{ ratingDimensionId: string; score: number }>;
+};

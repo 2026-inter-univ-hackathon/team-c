@@ -35,7 +35,7 @@ const getStoreDetailPageData = createServerFn({ method: "GET" })
     });
   });
 
-export const Route = createFileRoute("/stores/$storeId")({
+export const Route = createFileRoute("/stores/$storeId/")({
   // URLのIDが壊れている場合はサーバーに問い合わせず、「見つかりません」を出す。
   // サーバー側の検証は残したまま、500ではなく通常の画面を返すため。
   loader: ({ params }) => {
@@ -150,7 +150,16 @@ function StoreDetailPage() {
                 </p>
                 <h2 className="mt-1 text-xl font-semibold">働いた人の声</h2>
               </div>
-              <p className="text-sm text-zinc-500">{reviews.length}件表示</p>
+              <div className="flex items-center gap-3">
+                <p className="text-sm text-zinc-500">{reviews.length}件表示</p>
+                <Link
+                  to="/stores/$storeId/reviews/new"
+                  params={{ storeId: store.id }}
+                  className="rounded bg-sky-700 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-800"
+                >
+                  レビューを書く
+                </Link>
+              </div>
             </div>
 
             <div className="mt-3 grid gap-3">

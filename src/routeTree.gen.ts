@@ -11,7 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as StoresIndexRouteImport } from './routes/stores.index'
-import { Route as StoresStoreIdRouteImport } from './routes/stores.$storeId'
+import { Route as StoresStoreIdIndexRouteImport } from './routes/stores.$storeId.index'
+import { Route as StoresStoreIdReviewsNewRouteImport } from './routes/stores.$storeId.reviews.new'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -23,40 +24,55 @@ const StoresIndexRoute = StoresIndexRouteImport.update({
   path: '/stores/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const StoresStoreIdRoute = StoresStoreIdRouteImport.update({
-  id: '/stores/$storeId',
-  path: '/stores/$storeId',
+const StoresStoreIdIndexRoute = StoresStoreIdIndexRouteImport.update({
+  id: '/stores/$storeId/',
+  path: '/stores/$storeId/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StoresStoreIdReviewsNewRoute = StoresStoreIdReviewsNewRouteImport.update({
+  id: '/stores/$storeId/reviews/new',
+  path: '/stores/$storeId/reviews/new',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/stores/$storeId': typeof StoresStoreIdRoute
   '/stores/': typeof StoresIndexRoute
+  '/stores/$storeId/': typeof StoresStoreIdIndexRoute
+  '/stores/$storeId/reviews/new': typeof StoresStoreIdReviewsNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/stores/$storeId': typeof StoresStoreIdRoute
   '/stores': typeof StoresIndexRoute
+  '/stores/$storeId': typeof StoresStoreIdIndexRoute
+  '/stores/$storeId/reviews/new': typeof StoresStoreIdReviewsNewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/stores/$storeId': typeof StoresStoreIdRoute
   '/stores/': typeof StoresIndexRoute
+  '/stores/$storeId/': typeof StoresStoreIdIndexRoute
+  '/stores/$storeId/reviews/new': typeof StoresStoreIdReviewsNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/stores/$storeId' | '/stores/'
+  fullPaths:
+    '/' | '/stores/' | '/stores/$storeId/' | '/stores/$storeId/reviews/new'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/stores/$storeId' | '/stores'
-  id: '__root__' | '/' | '/stores/$storeId' | '/stores/'
+  to: '/' | '/stores' | '/stores/$storeId' | '/stores/$storeId/reviews/new'
+  id:
+    | '__root__'
+    | '/'
+    | '/stores/'
+    | '/stores/$storeId/'
+    | '/stores/$storeId/reviews/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  StoresStoreIdRoute: typeof StoresStoreIdRoute
   StoresIndexRoute: typeof StoresIndexRoute
+  StoresStoreIdIndexRoute: typeof StoresStoreIdIndexRoute
+  StoresStoreIdReviewsNewRoute: typeof StoresStoreIdReviewsNewRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -75,11 +91,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StoresIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/stores/$storeId': {
-      id: '/stores/$storeId'
+    '/stores/$storeId/': {
+      id: '/stores/$storeId/'
       path: '/stores/$storeId'
-      fullPath: '/stores/$storeId'
-      preLoaderRoute: typeof StoresStoreIdRouteImport
+      fullPath: '/stores/$storeId/'
+      preLoaderRoute: typeof StoresStoreIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stores/$storeId/reviews/new': {
+      id: '/stores/$storeId/reviews/new'
+      path: '/stores/$storeId/reviews/new'
+      fullPath: '/stores/$storeId/reviews/new'
+      preLoaderRoute: typeof StoresStoreIdReviewsNewRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -87,8 +110,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  StoresStoreIdRoute: StoresStoreIdRoute,
   StoresIndexRoute: StoresIndexRoute,
+  StoresStoreIdIndexRoute: StoresStoreIdIndexRoute,
+  StoresStoreIdReviewsNewRoute: StoresStoreIdReviewsNewRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
