@@ -12,7 +12,7 @@ const getStoresPageData = createServerFn({ method: "GET" }).handler(
   },
 );
 
-export const Route = createFileRoute("/stores")({
+export const Route = createFileRoute("/stores/")({
   loader: () => getStoresPageData(),
   component: StoresPage,
 });

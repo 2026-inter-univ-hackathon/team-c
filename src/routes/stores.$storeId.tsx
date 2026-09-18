@@ -36,7 +36,17 @@ const getStoreDetailPageData = createServerFn({ method: "GET" })
   });
 
 export const Route = createFileRoute("/stores/$storeId")({
-  loader: ({ params }) => getStoreDetailPageData({ data: params }),
+  // URLのIDが壊れている場合はサーバーに問い合わせず、「見つかりません」を出す。
+  // サーバー側の検証は残したまま、500ではなく通常の画面を返すため。
+  loader: ({ params }) => {
+    const parsed = storeDetailInputSchema.safeParse(params);
+
+    if (!parsed.success) {
+      return { store: null, reviews: [] };
+    }
+
+    return getStoreDetailPageData({ data: parsed.data });
+  },
   component: StoreDetailPage,
 });
 
