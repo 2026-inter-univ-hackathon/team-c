@@ -1,46 +1,178 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { appInfo } from "../lib/app-info";
-
-export const Route = createFileRoute("/")({
-  component: Home,
-});
-
+import { SearchForm } from "../features/stores/search-form";
+import { defaultSearch } from "../schemas/store-search";
+import { Icon } from "../components/icon";
+import cafe from "../../img/cafe.jpg";
+import conv from "../../img/conv.jpg";
+import juku from "../../img/juku.jpg";
+export const Route = createFileRoute("/")({ component: Home });
 function Home() {
   return (
-    <main className="min-h-dvh bg-stone-50 text-zinc-950">
-      <section className="mx-auto flex min-h-dvh w-full max-w-5xl flex-col justify-center px-5 py-12">
-        <div className="grid gap-8 md:grid-cols-[1.1fr_0.9fr] md:items-center">
-          <div>
-            <p className="text-sm font-semibold text-sky-700">
-              {appInfo.stage}
+    <main id="main">
+      <section className="hero">
+        <div className="container hero-grid">
+          <div className="hero-copy">
+            <p className="eyebrow">
+              <span />
+              働いた人の声で、バイト選びは変わる。
             </p>
-            <h1 className="mt-3 text-4xl font-bold tracking-normal sm:text-5xl">
-              {appInfo.name}
+            <h1>
+              求人票の、その先の
+              <br />
+              <em>ホンネ</em>を知ろう。
             </h1>
-            <p className="mt-4 max-w-xl text-base leading-7 text-zinc-700">
-              働く人の声から、自分に合うアルバイト先を選ぶための口コミWebアプリです。
-              まずは実装基盤を固め、設計書に沿って安全に機能を増やしていきます。
+            <p className="hero-description">
+              職場の雰囲気、教え方、忙しさ。
+              <br />
+              働いてみないとわからないことを、
+              <br className="mobile-only" />
+              先輩たちの口コミから。
             </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link
-                to="/stores"
-                className="rounded bg-sky-700 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-800"
-              >
-                店舗データを見る
-              </Link>
+            <div className="hero-footnote">
+              <span>はじめてのバイトも。</span>
+              <span>次の一歩も。</span>
             </div>
           </div>
-
-          <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-            <h2 className="text-base font-semibold">実装基盤</h2>
-            <dl className="mt-4 grid gap-3 text-sm">
-              {appInfo.stack.map((item) => (
-                <div key={item.label} className="flex justify-between gap-4">
-                  <dt className="text-zinc-500">{item.label}</dt>
-                  <dd className="font-medium text-zinc-900">{item.value}</dd>
+          <div className="hero-visual">
+            <img src={cafe} alt="カフェのカウンターのイメージ" />
+            <span className="photo-caption">職場イメージ</span>
+            <div className="hero-note">
+              <Icon name="chat" size={28} />
+              <div>
+                <strong>
+                  「ここで働く」を、
+                  <br />
+                  もっと自分らしく。
+                </strong>
+                <span>WORK WITH YOUR OWN VALUES</span>
+              </div>
+            </div>
+            <span className="hero-stamp">
+              働く前に
+              <br />
+              <b>ホンネ</b>
+              <br />
+              をチェック
+            </span>
+          </div>
+        </div>
+        <div className="container hero-search">
+          <SearchForm />
+          <div className="quick-search">
+            <span>気になる業種から：</span>
+            {[
+              ["cafe", "カフェ"],
+              ["convenience", "コンビニ"],
+              ["education", "教育・塾"],
+            ].map(([code, label]) => (
+              <Link
+                key={code}
+                to="/stores"
+                search={{ ...defaultSearch, category: code }}
+              >
+                {label}
+                <span>↗</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+      <section className="container home-section">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">FIND YOUR WORKPLACE</p>
+            <h2>どんな場所で、働きたい？</h2>
+          </div>
+          <Link to="/stores" search={defaultSearch} className="text-link">
+            すべての職場を見る
+            <Icon name="arrow" size={17} />
+          </Link>
+        </div>
+        <div className="category-grid">
+          {[
+            {
+              code: "cafe",
+              name: "カフェ",
+              en: "CAFE",
+              image: cafe,
+              description: "一杯のコーヒーの、その裏側。",
+            },
+            {
+              code: "convenience",
+              name: "コンビニ",
+              en: "CONVENIENCE STORE",
+              image: conv,
+              description: "身近なお店の、リアルな毎日。",
+            },
+            {
+              code: "education",
+              name: "教育・塾",
+              en: "EDUCATION",
+              image: juku,
+              description: "誰かの成長を支える仕事。",
+            },
+          ].map((item) => (
+            <Link
+              key={item.code}
+              to="/stores"
+              search={{ ...defaultSearch, category: item.code }}
+              className="category-card"
+            >
+              <div>
+                <img src={item.image} alt="" loading="lazy" />
+                <span>業種イメージ</span>
+              </div>
+              <p>{item.en}</p>
+              <h3>
+                {item.name}
+                <Icon name="arrow" />
+              </h3>
+              <span>{item.description}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+      <section className="about-section">
+        <div className="container about-grid">
+          <div>
+            <p className="eyebrow">BEFORE YOU START</p>
+            <h2>
+              条件だけじゃ、
+              <br />
+              わからないことがある。
+            </h2>
+            <p>
+              大事なのは、あなたに合うかどうか。
+              <br />
+              いろいろな声を見比べて、納得できる選択を。
+            </p>
+          </div>
+          <div className="steps">
+            {[
+              [
+                "01",
+                "職場のホンネを見つける",
+                "エリアや業種から、気になるバイト先を検索。",
+              ],
+              [
+                "02",
+                "評価と口コミを読み比べる",
+                "雰囲気や新人教育など、あなたの重視するポイントを確認。",
+              ],
+              [
+                "03",
+                "気になる職場を保存する",
+                "このブラウザに保存して、あとでじっくり検討。",
+              ],
+            ].map(([n, title, description]) => (
+              <div key={n}>
+                <span>{n}</span>
+                <div>
+                  <h3>{title}</h3>
+                  <p>{description}</p>
                 </div>
-              ))}
-            </dl>
+              </div>
+            ))}
           </div>
         </div>
       </section>

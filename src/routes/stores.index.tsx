@@ -1,119 +1,212 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
-import { withDb } from "../server/db";
-import { listPublicStoresUseCase } from "../server/use-cases";
-
-const getStoresPageData = createServerFn({ method: "GET" }).handler(
-  async () => {
-    return withDb(async (db) => {
-      const stores = await listPublicStoresUseCase(db, { limit: 30 });
-      return { stores };
-    });
-  },
-);
-
+import { searchStores, getFilters } from "../server/store-functions";
+import {
+  defaultSearch,
+  parseSearchParams,
+  type StoreSearch,
+} from "../schemas/store-search";
+import {
+  StoreCard,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+} from "../features/stores/store-ui";
+import { SearchForm } from "../features/stores/search-form";
+import { Icon } from "../components/icon";
 export const Route = createFileRoute("/stores/")({
-  loader: () => getStoresPageData(),
+  validateSearch: parseSearchParams,
+  loaderDeps: ({ search }) => search,
+  loader: async ({ deps }) => {
+    const [result, filters] = await Promise.all([
+      searchStores({ data: deps }),
+      getFilters(),
+    ]);
+    return { result, filters };
+  },
   component: StoresPage,
+  pendingComponent: LoadingState,
+  errorComponent: ErrorState,
 });
-
 function StoresPage() {
-  const { stores } = Route.useLoaderData();
-
+  const { result, filters } = Route.useLoaderData();
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  function update(patch: Partial<StoreSearch>) {
+    void navigate({ search: { ...search, ...patch, page: patch.page ?? 1 } });
+  }
+  const active = Boolean(
+    search.q || search.area || search.category || search.minRating,
+  );
   return (
-    <main className="min-h-dvh bg-zinc-50 text-zinc-950">
-      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
-        <header className="border-b border-zinc-200 pb-5">
-          <Link
-            to="/"
-            className="text-sm font-medium text-sky-700 hover:text-sky-800"
-          >
-            トップへ戻る
-          </Link>
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-sm font-semibold text-sky-700">
-                店舗を比較する
-              </p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-normal sm:text-3xl">
-                店舗一覧
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600">
-                公開レビューをもとに、エリア・カテゴリ・評価・働いた人の声を見比べられます。
-              </p>
-            </div>
-            <p className="text-sm text-zinc-500">{stores.length}件</p>
+    <main id="main">
+      <div className="search-strip">
+        <div className="container">
+          <SearchForm key={search.q + "|" + search.area} search={search} />
+        </div>
+      </div>
+      <div className="container">
+        <div className="breadcrumbs">
+          <Link to="/">ホーム</Link>
+          <span> / </span>
+          <span>バイト先を探す</span>
+        </div>
+        <div className="listing-title">
+          <div>
+            <p className="eyebrow">WORKPLACE REVIEWS</p>
+            <h1>あなたに合う、バイト先を。</h1>
+            <p>働いた人のリアルな声から、職場を見比べよう。</p>
           </div>
-        </header>
-
-        <section className="mt-5" aria-label="店舗一覧">
-          {stores.length > 0 ? (
-            <div className="grid gap-3">
-              {stores.map((store) => (
-                <Link
-                  key={store.id}
-                  to="/stores/$storeId"
-                  params={{ storeId: store.id }}
-                  className="block rounded border border-zinc-200 bg-white p-4 transition hover:border-sky-300 hover:bg-sky-50/40"
-                >
-                  <div className="grid gap-4 lg:grid-cols-[1fr_180px] lg:items-start">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="truncate text-lg font-semibold text-zinc-950">
-                          {store.name}
-                        </h2>
-                        {store.categories.map((category) => (
-                          <span
-                            key={category.id}
-                            className="rounded border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-xs text-zinc-600"
-                          >
-                            {category.name}
-                          </span>
-                        ))}
-                      </div>
-                      <p className="mt-1 text-sm text-zinc-600">
-                        {formatArea(store.prefecture, store.city)}
-                      </p>
-                      <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-700">
-                        {store.reviewExcerpt ??
-                          "まだレビュー抜粋はありません。"}
-                      </p>
-                    </div>
-
-                    <dl className="grid grid-cols-2 gap-2 text-sm lg:grid-cols-1">
-                      <div className="rounded bg-zinc-50 px-3 py-2">
-                        <dt className="text-xs text-zinc-500">平均評価</dt>
-                        <dd className="mt-1 font-semibold text-zinc-950">
-                          {formatRating(store.averageRating)}
-                        </dd>
-                      </div>
-                      <div className="rounded bg-zinc-50 px-3 py-2">
-                        <dt className="text-xs text-zinc-500">レビュー</dt>
-                        <dd className="mt-1 font-semibold text-zinc-950">
-                          {store.reviewCount}件
-                        </dd>
-                      </div>
-                    </dl>
-                  </div>
+          <span className="listing-total">
+            <strong>{result.total}</strong> 件の職場
+          </span>
+        </div>
+        <div className="listing-layout">
+          <aside className="filter-panel">
+            <div className="filter-heading">
+              <h2>条件を絞り込む</h2>
+              {active && (
+                <Link to="/stores" search={defaultSearch}>
+                  クリア
                 </Link>
+              )}
+            </div>
+            <label className="filter-field">
+              エリア
+              <select
+                value={filters.areas.includes(search.area) ? search.area : ""}
+                onChange={(e) => update({ area: e.target.value })}
+              >
+                <option value="">すべてのエリア</option>
+                {filters.areas.map((area) => (
+                  <option key={area}>{area}</option>
+                ))}
+              </select>
+            </label>
+            <fieldset>
+              <legend>業種から選ぶ</legend>
+              <label className="radio-row">
+                <input
+                  type="radio"
+                  name="category"
+                  checked={!search.category}
+                  onChange={() => update({ category: "" })}
+                />
+                すべての業種
+              </label>
+              {filters.categories.map((category) => (
+                <label className="radio-row" key={category.code}>
+                  <input
+                    type="radio"
+                    name="category"
+                    checked={search.category === category.code}
+                    onChange={() => update({ category: category.code })}
+                  />
+                  {category.name}
+                </label>
+              ))}
+            </fieldset>
+            <label className="filter-field">
+              平均評価
+              <select
+                value={search.minRating}
+                onChange={(e) => update({ minRating: Number(e.target.value) })}
+              >
+                <option value={0}>すべての評価</option>
+                <option value={4}>4.0以上</option>
+                <option value={3}>3.0以上</option>
+                <option value={2}>2.0以上</option>
+              </select>
+            </label>
+            <div className="filter-note">
+              <Icon name="chat" size={25} />
+              <strong>数字と、その理由も。</strong>
+              <p>評価だけでなく、口コミに書かれた経験も参考にしましょう。</p>
+            </div>
+          </aside>
+          <section aria-label="検索結果" className="results">
+            <div className="results-toolbar">
+              <p role="status">
+                <b>{result.total}</b>件
+                {result.total > 0 && (
+                  <>
+                    中 {(result.page - 1) * 12 + 1}–
+                    {Math.min(result.page * 12, result.total)}件を表示
+                  </>
+                )}
+              </p>
+              <label>
+                並び替え
+                <select
+                  value={search.sort}
+                  onChange={(e) =>
+                    update({ sort: e.target.value as StoreSearch["sort"] })
+                  }
+                >
+                  <option value="name">店舗名順</option>
+                  <option value="rating">評価が高い順</option>
+                  <option value="reviews">口コミが多い順</option>
+                </select>
+              </label>
+            </div>
+            {active && (
+              <div className="active-filters">
+                {search.q && <span>店舗名：{search.q}</span>}
+                {search.area && <span>{search.area}</span>}
+                {search.category && (
+                  <span>
+                    {filters.categories.find((c) => c.code === search.category)
+                      ?.name ?? search.category}
+                  </span>
+                )}
+                {search.minRating > 0 && (
+                  <span>評価 {search.minRating}以上</span>
+                )}
+              </div>
+            )}
+            <div className="store-list">
+              {result.stores.map((store) => (
+                <StoreCard key={store.id} store={store} />
               ))}
             </div>
-          ) : (
-            <div className="rounded border border-dashed border-zinc-300 bg-white p-6 text-sm text-zinc-600">
-              表示できる店舗がありません。`pnpm run db:seed`
-              を実行してください。
-            </div>
-          )}
-        </section>
+            {result.total === 0 && (
+              <EmptyState title="条件に合う職場が見つかりませんでした">
+                <p>
+                  キーワードを短くするか、絞り込み条件を変更してみてください。
+                </p>
+                <Link
+                  className="button primary"
+                  to="/stores"
+                  search={defaultSearch}
+                >
+                  すべての職場を見る
+                </Link>
+              </EmptyState>
+            )}
+            {result.pageCount > 1 && (
+              <nav className="pagination" aria-label="検索結果のページ">
+                <button
+                  disabled={result.page <= 1}
+                  onClick={() => update({ page: result.page - 1 })}
+                >
+                  前へ
+                </button>
+                <span>
+                  {result.page} / {result.pageCount}
+                </span>
+                <button
+                  disabled={result.page >= result.pageCount}
+                  onClick={() => update({ page: result.page + 1 })}
+                >
+                  次へ
+                </button>
+              </nav>
+            )}
+            <p className="data-note">
+              評価は公開口コミの各評価点の単純平均です。写真は業種のイメージです。
+            </p>
+          </section>
+        </div>
       </div>
     </main>
   );
-}
-
-function formatArea(prefecture: string | null, city: string | null) {
-  return [prefecture, city].filter(Boolean).join(" ") || "所在地未設定";
-}
-
-function formatRating(value: number | null) {
-  return value === null ? "未評価" : `${value.toFixed(1)} / 5`;
 }

@@ -1,11 +1,8 @@
-import {
-  HeadContent,
-  Outlet,
-  Scripts,
-  createRootRoute,
-} from "@tanstack/react-router";
+import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import "../styles.css";
+import { SiteShell } from "../components/site-shell";
+import iconUrl from "../../img/icon.svg";
 
 export const Route = createRootRoute({
   head: () => ({
@@ -16,14 +13,14 @@ export const Route = createRootRoute({
         content: "width=device-width, initial-scale=1, viewport-fit=cover",
       },
       { title: "バイトのホンネ" },
-      { name: "theme-color", content: "#f7f7f3" },
+      { name: "theme-color", content: "#FF6A2B" },
     ],
     links: [
-      { rel: "icon", href: "/img/icon.svg" },
-      { rel: "apple-touch-icon", href: "/img/icon.svg" },
+      { rel: "icon", href: iconUrl },
+      { rel: "apple-touch-icon", href: iconUrl },
     ],
   }),
-  component: Outlet,
+  component: SiteShell,
   shellComponent: RootDocument,
 });
 

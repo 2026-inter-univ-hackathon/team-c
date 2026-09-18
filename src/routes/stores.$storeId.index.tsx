@@ -1,257 +1,267 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { withDb } from "../server/db";
+import { getStoreDetail } from "../server/store-functions";
+import { defaultSearch } from "../schemas/store-search";
 import {
-  getPublicStoreDetailUseCase,
-  listPublicStoreReviewsUseCase,
-} from "../server/use-cases";
-
-const storeDetailInputSchema = z.object({
-  storeId: z.uuid(),
-});
-
-const getStoreDetailPageData = createServerFn({ method: "GET" })
-  .validator((data: unknown) => storeDetailInputSchema.parse(data))
-  .handler(async ({ data }) => {
-    return withDb(async (db) => {
-      const store = await getPublicStoreDetailUseCase(db, {
-        storeId: data.storeId,
-      });
-      const reviews = store
-        ? await listPublicStoreReviewsUseCase(db, {
-            storeId: data.storeId,
-            limit: 20,
-          })
-        : [];
-
-      return {
-        store,
-        reviews: reviews.map((review) => ({
-          ...review,
-          publishedAt: review.publishedAt.toISOString(),
-        })),
-      };
-    });
-  });
-
+  categoryImage,
+  EmptyState,
+  ErrorState,
+  FavoriteButton,
+  LoadingState,
+  Rating,
+} from "../features/stores/store-ui";
+import { Icon } from "../components/icon";
 export const Route = createFileRoute("/stores/$storeId/")({
-  // URLのIDが壊れている場合はサーバーに問い合わせず、「見つかりません」を出す。
-  // サーバー側の検証は残したまま、500ではなく通常の画面を返すため。
-  loader: ({ params }) => {
-    const parsed = storeDetailInputSchema.safeParse(params);
-
-    if (!parsed.success) {
-      return { store: null, reviews: [] };
-    }
-
-    return getStoreDetailPageData({ data: parsed.data });
-  },
-  component: StoreDetailPage,
+  validateSearch: (raw: Record<string, unknown>) => ({
+    page: z.coerce.number().int().min(1).max(10000).catch(1).parse(raw.page),
+  }),
+  loaderDeps: ({ search }) => search,
+  loader: ({ params, deps }) =>
+    z.uuid().safeParse(params.storeId).success
+      ? getStoreDetail({ data: { ...params, ...deps } })
+      : { store: null, reviews: [], page: 1, pageCount: 1 },
+  component: DetailPage,
+  pendingComponent: LoadingState,
+  errorComponent: ErrorState,
 });
-
-function StoreDetailPage() {
-  const { store, reviews } = Route.useLoaderData();
-
-  if (!store) {
+function DetailPage() {
+  const { store, reviews, page, pageCount } = Route.useLoaderData();
+  const navigate = Route.useNavigate();
+  if (!store)
     return (
-      <main className="min-h-dvh bg-zinc-50 text-zinc-950">
-        <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
-          <Link
-            to="/stores"
-            className="text-sm font-medium text-sky-700 hover:text-sky-800"
-          >
-            店舗一覧へ戻る
+      <main id="main" className="container page-section">
+        <EmptyState title="職場が見つかりませんでした">
+          <p>この職場は非公開、または削除された可能性があります。</p>
+          <Link className="button primary" to="/stores" search={defaultSearch}>
+            職場を探す
           </Link>
-          <div className="mt-5 rounded border border-dashed border-zinc-300 bg-white p-6 text-sm text-zinc-600">
-            店舗が見つかりませんでした。
-          </div>
-        </div>
+        </EmptyState>
       </main>
     );
-  }
-
   return (
-    <main className="min-h-dvh bg-zinc-50 text-zinc-950">
-      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
-        <Link
-          to="/stores"
-          className="text-sm font-medium text-sky-700 hover:text-sky-800"
-        >
-          店舗一覧へ戻る
+    <main id="main" className="container detail-page">
+      <div className="breadcrumbs">
+        <Link to="/">ホーム</Link>
+        <span> / </span>
+        <Link to="/stores" search={defaultSearch}>
+          バイト先を探す
         </Link>
-
-        <header className="mt-4 border-b border-zinc-200 pb-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0">
-              <p className="text-sm text-zinc-500">
-                {store.postalCode ?? "郵便番号未設定"}
-              </p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-normal sm:text-3xl">
-                {store.name}
-              </h1>
-              <p className="mt-2 text-sm leading-6 text-zinc-700">
+        <span> / {store.name}</span>
+      </div>
+      <header className="detail-header">
+        <div className="detail-title">
+          <div className="tags">
+            {store.categories.map((category) => (
+              <span key={category.code}>{category.name}</span>
+            ))}
+          </div>
+          <h1>{store.name}</h1>
+          <p className="location">
+            <Icon name="pin" size={16} />
+            {[store.prefecture, store.city, store.address]
+              .filter(Boolean)
+              .join(" ") || "住所の登録はありません"}
+          </p>
+          <Rating value={store.averageRating} count={store.reviewCount} />
+        </div>
+        <FavoriteButton id={store.id} name={store.name} />
+      </header>
+      <nav className="detail-tabs" aria-label="店舗内ナビゲーション">
+        <a href="#overview">評価・職場情報</a>
+        <a href="#reviews">
+          口コミ <span>{store.reviewCount}</span>
+        </a>
+      </nav>
+      <div className="detail-layout">
+        <aside>
+          <div className="detail-photo">
+            <img
+              src={categoryImage(store.categories[0]?.code)}
+              alt="業種のイメージ"
+            />
+            <span>業種イメージ（実際の店舗写真ではありません）</span>
+          </div>
+          <div className="workplace-info">
+            <p className="eyebrow">WORKPLACE INFO</p>
+            <h2>職場の基本情報</h2>
+            <dl>
+              <dt>店舗名</dt>
+              <dd>{store.name}</dd>
+              <dt>住所</dt>
+              <dd>
                 {[store.prefecture, store.city, store.address]
                   .filter(Boolean)
-                  .join(" ") || "住所未設定"}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {store.categories.map((category) => (
-                  <span
-                    key={category.id}
-                    className="rounded border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-600"
-                  >
-                    {category.name}
-                  </span>
+                  .join(" ") || "未登録"}
+              </dd>
+              <dt>業種</dt>
+              <dd>
+                {store.categories.map((c) => c.name).join("・") || "未登録"}
+              </dd>
+            </dl>
+          </div>
+          <div className="reading-note">
+            <Icon name="chat" size={24} />
+            <h3>いろいろな声を、あなたの判断に。</h3>
+            <p>
+              働いた時期や立場によって、感じ方はさまざま。評価とあわせて、口コミの背景にも目を向けてみましょう。
+            </p>
+          </div>
+        </aside>
+        <div>
+          <section id="overview" className="rating-panel">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">WORKPLACE SCORE</p>
+                <h2>働きやすさを、見てみよう。</h2>
+              </div>
+              <span className="small-muted">{store.reviewCount}件の口コミ</span>
+            </div>
+            <div className="score-grid">
+              <div className="overall-score">
+                <span>平均評価</span>
+                <strong>{store.averageRating?.toFixed(2) ?? "—"}</strong>
+                <span className="stars" aria-hidden="true">
+                  {store.averageRating === null
+                    ? "☆☆☆☆☆"
+                    : "★".repeat(Math.round(store.averageRating)) +
+                      "☆".repeat(5 - Math.round(store.averageRating))}
+                </span>
+                <small>5点満点</small>
+              </div>
+              <div className="dimension-list">
+                {store.ratingSummary.map((rating) => (
+                  <div key={rating.dimensionCode}>
+                    <span>{rating.dimensionLabel}</span>
+                    <meter
+                      min={0}
+                      max={5}
+                      value={rating.averageScore ?? 0}
+                      aria-label={rating.dimensionLabel}
+                    />
+                    <strong>{rating.averageScore?.toFixed(1) ?? "—"}</strong>
+                  </div>
                 ))}
               </div>
             </div>
-
-            <dl className="grid min-w-[220px] grid-cols-2 gap-2 text-sm">
-              <div className="rounded bg-white px-3 py-2">
-                <dt className="text-xs text-zinc-500">平均評価</dt>
-                <dd className="mt-1 font-semibold text-zinc-950">
-                  {formatRating(store.averageRating)}
-                </dd>
-              </div>
-              <div className="rounded bg-white px-3 py-2">
-                <dt className="text-xs text-zinc-500">レビュー</dt>
-                <dd className="mt-1 font-semibold text-zinc-950">
-                  {store.reviewCount}件
-                </dd>
-              </div>
-            </dl>
-          </div>
-        </header>
-
-        <div className="mt-5 grid gap-5 lg:grid-cols-[300px_1fr] lg:items-start">
-          <aside className="rounded border border-zinc-200 bg-white p-4">
-            <p className="text-sm font-semibold text-zinc-950">評価サマリー</p>
-            <dl className="mt-3 grid gap-2">
-              {store.ratingSummary.map((rating) => (
-                <div
-                  key={rating.dimensionCode}
-                  className="flex items-center justify-between gap-3 rounded bg-zinc-50 px-3 py-2 text-sm"
-                >
-                  <dt className="text-zinc-600">{rating.dimensionLabel}</dt>
-                  <dd className="font-semibold text-zinc-950">
-                    {formatRating(rating.averageScore)}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </aside>
-
-          <section className="min-w-0">
-            <div className="flex items-end justify-between gap-4">
+            <p className="data-note">
+              公開口コミの評価点を単純平均しています。口コミがない項目は「—」で表示します。
+            </p>
+          </section>
+          <section id="reviews" className="reviews-section">
+            <div className="section-heading">
               <div>
-                <p className="text-sm font-semibold text-sky-700">
-                  公開レビュー
-                </p>
-                <h2 className="mt-1 text-xl font-semibold">働いた人の声</h2>
+                <p className="eyebrow">REAL VOICES</p>
+                <h2>働いた人のホンネ</h2>
               </div>
-              <div className="flex items-center gap-3">
-                <p className="text-sm text-zinc-500">{reviews.length}件表示</p>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="small-muted">新しい口コミから表示</span>
                 <Link
                   to="/stores/$storeId/reviews/new"
                   params={{ storeId: store.id }}
-                  className="rounded bg-sky-700 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-800"
+                  className="button primary"
                 >
                   レビューを書く
                 </Link>
               </div>
             </div>
-
-            <div className="mt-3 grid gap-3">
-              {reviews.length > 0 ? (
-                reviews.map((review) => (
-                  <article
-                    key={review.id}
-                    className="rounded border border-zinc-200 bg-white p-4"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-semibold text-zinc-950">
-                          {review.publicAuthorLabel}
-                        </p>
-                        <p className="mt-1 text-xs text-zinc-500">
-                          {formatEmployment(
-                            review.employmentStartYear,
-                            review.employmentEndYear,
-                            review.employmentStatus,
-                          )}
-                        </p>
-                      </div>
-                      <time className="text-xs text-zinc-500">
-                        {formatDate(review.publishedAt)}
-                      </time>
+            {reviews.length ? (
+              reviews.map((review) => (
+                <article className="review-card" key={review.id}>
+                  <div className="review-author">
+                    <span className="author-icon">
+                      <Icon name="chat" size={22} />
+                    </span>
+                    <div>
+                      <strong>{review.publicAuthorLabel}</strong>
+                      <p>
+                        {review.employmentStatus === "CURRENT"
+                          ? "在職中"
+                          : "退職済み"}
+                        <span> / </span>
+                        {review.employmentStartYear}年〜
+                        {review.employmentEndYear
+                          ? review.employmentEndYear + "年"
+                          : review.employmentStatus === "CURRENT"
+                            ? "現在"
+                            : "終了年未登録"}
+                      </p>
                     </div>
-
-                    <p className="mt-3 text-sm leading-6 text-zinc-800">
-                      {review.summary}
-                    </p>
-
-                    <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
-                      {review.ratings.map((rating) => (
-                        <div
-                          key={rating.dimensionCode}
-                          className="flex items-center justify-between gap-3 rounded bg-zinc-50 px-3 py-2"
-                        >
-                          <dt className="text-zinc-600">
-                            {rating.dimensionLabel}
-                          </dt>
-                          <dd className="font-semibold">{rating.score}/5</dd>
-                        </div>
-                      ))}
-                    </dl>
-
-                    <div className="mt-4 grid gap-3">
-                      {review.answers.map((answer) => (
-                        <section key={answer.questionCode}>
-                          <h3 className="text-xs font-semibold text-zinc-500">
-                            {answer.questionLabel}
-                          </h3>
-                          <p className="mt-1 text-sm leading-6 text-zinc-800">
-                            {answer.answerText}
-                          </p>
-                        </section>
-                      ))}
-                    </div>
-                  </article>
-                ))
-              ) : (
-                <div className="rounded border border-dashed border-zinc-300 bg-white p-6 text-sm text-zinc-600">
-                  この店舗の公開レビューはまだありません。
-                </div>
-              )}
-            </div>
+                    <time dateTime={review.publishedAt}>
+                      {new Intl.DateTimeFormat("ja-JP", {
+                        year: "numeric",
+                        month: "2-digit",
+                        day: "2-digit",
+                        timeZone: "Asia/Tokyo",
+                      }).format(new Date(review.publishedAt))}
+                    </time>
+                  </div>
+                  <p className="review-summary">{review.summary}</p>
+                  <div className="review-ratings">
+                    {review.ratings.map((rating) => (
+                      <span key={rating.dimensionCode}>
+                        {rating.dimensionLabel}
+                        <b>★ {rating.score.toFixed(1)}</b>
+                      </span>
+                    ))}
+                  </div>
+                  {review.answers.length > 0 && (
+                    <details className="review-answers">
+                      <summary>
+                        この人の詳しい体験を読む <span>＋</span>
+                      </summary>
+                      <dl>
+                        {review.answers.map((answer) => (
+                          <div key={answer.questionCode}>
+                            <dt>{answer.questionLabel}</dt>
+                            <dd>{answer.answerText}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </details>
+                  )}
+                </article>
+              ))
+            ) : (
+              <EmptyState title="口コミはまだありません">
+                <p>この職場の経験が集まるまで、ほかの職場も見てみましょう。</p>
+                <Link to="/stores" search={defaultSearch} className="text-link">
+                  職場一覧へ
+                  <Icon name="arrow" />
+                </Link>
+              </EmptyState>
+            )}
+            {pageCount > 1 && (
+              <nav className="pagination" aria-label="口コミのページ">
+                <button
+                  disabled={page <= 1}
+                  onClick={() =>
+                    void navigate({
+                      search: { page: page - 1 },
+                      hash: "reviews",
+                    })
+                  }
+                >
+                  前へ
+                </button>
+                <span>
+                  {page} / {pageCount}
+                </span>
+                <button
+                  disabled={page >= pageCount}
+                  onClick={() =>
+                    void navigate({
+                      search: { page: page + 1 },
+                      hash: "reviews",
+                    })
+                  }
+                >
+                  次へ
+                </button>
+              </nav>
+            )}
           </section>
         </div>
       </div>
     </main>
   );
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("ja-JP", {
-    dateStyle: "medium",
-  }).format(new Date(value));
-}
-
-function formatRating(value: number | null) {
-  return value === null ? "未評価" : `${value.toFixed(1)} / 5`;
-}
-
-function formatEmployment(
-  startYear: number,
-  endYear: number | null,
-  status: "CURRENT" | "FORMER",
-) {
-  if (status === "CURRENT") {
-    return `${startYear}年から勤務中`;
-  }
-
-  return endYear
-    ? `${startYear}年〜${endYear}年に勤務`
-    : `${startYear}年から勤務`;
 }

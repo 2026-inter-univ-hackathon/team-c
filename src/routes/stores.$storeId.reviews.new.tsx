@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { defaultSearch } from "../schemas/store-search";
 import { withDb } from "../server/db";
 import { DuplicateReviewError } from "../server/errors";
 import {
@@ -185,6 +186,7 @@ function ReviewForm({
       await router.navigate({
         to: "/stores/$storeId",
         params: { storeId: store.id },
+        search: { page: 1 },
       });
     } finally {
       setIsSubmitting(false);
@@ -273,10 +275,11 @@ function ReviewForm({
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="min-h-dvh bg-zinc-50 text-zinc-950">
+    <main id="main" className="min-h-dvh bg-zinc-50 text-zinc-950">
       <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
         <Link
           to="/stores"
+          search={defaultSearch}
           className="text-sm font-medium text-sky-700 hover:text-sky-800"
         >
           店舗一覧へ戻る
