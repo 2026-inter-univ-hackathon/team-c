@@ -345,8 +345,8 @@ h3 {
 .search-bar label {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 18px;
+  gap: 14px;
+  padding: 0 20px;
   min-width: 0;
   flex: 1;
   color: var(--brown);
@@ -363,6 +363,7 @@ h3 {
   outline-offset: 0;
   color: #352a25;
   font-size: 13px;
+  padding-left: 6px;
 }
 .search-bar input::placeholder {
   color: #898079;
