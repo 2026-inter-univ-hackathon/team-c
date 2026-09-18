@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+
+  checks:
+    name: Lint / Types / Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm format
+      - run: pnpm typecheck
+      - run: pnpm build
+      # ビルドは routeTree.gen.ts を再生成する。差分が出たら、生成物のコミット忘れ。
+      - name: Generated route tree is committed
+        run: git diff --exit-code -- src/routeTree.gen.ts
+
+  database:
+    name: Migrations / Seed
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        # uuidv7() を使うため 18 が必要。ローカルの docker と合わせる。
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: baito_honne
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d baito_honne"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/baito_honne
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Apply migrations
+        run: pnpm db:migrate
+      - name: Seed
+        run: pnpm db:seed
+      # seed は何度実行しても重複しない約束。2回目で件数が変わらないことを確かめる。
+      - name: Seed is idempotent
+        run: pnpm db:seed
+      # schema/index.ts を変えてマイグレーション生成を忘れると、ここで差分が出る。
+      - name: Migrations match the schema
+        run: |
+          pnpm db:generate
+          git diff --exit-code -- src/db/migrations
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm audit --audit-level high
