@@ -1,4 +1,5 @@
-import { useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
+import { useFavoriteFeedback } from "./favorite-feedback";
 const KEY = "baito-honne:favorites:v1";
 const EVENT = "honne:favorites";
 const UUID =
@@ -36,7 +37,7 @@ function subscribe(callback: () => void) {
 }
 export function useFavorites() {
   const raw = useSyncExternalStore(subscribe, snapshot, () => "[]");
-  const [message, setMessage] = useState("");
+  const setMessage = useFavoriteFeedback();
   const ids = parseFavorites(raw);
   function toggle(id: string) {
     const current = parseFavorites(snapshot());
@@ -73,5 +74,5 @@ export function useFavorites() {
       );
     }
   }
-  return { ids, raw, toggle, clear, message };
+  return { ids, raw, toggle, clear };
 }

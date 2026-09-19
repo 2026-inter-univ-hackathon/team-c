@@ -9,7 +9,7 @@ import { searchStores } from "../server/store-functions";
 import { defaultSearch } from "../schemas/store-search";
 export const Route = createFileRoute("/saved")({ component: SavedPage });
 function SavedPage() {
-  const { ids, raw, clear, message } = useFavorites();
+  const { ids, raw, clear } = useFavorites();
   return (
     <main id="main" className="container page-section">
       <div className="breadcrumbs">
@@ -30,9 +30,6 @@ function SavedPage() {
           onConfirm={clear}
         />
       )}
-      <p className="data-note" role="status">
-        {message}
-      </p>
       {ids.length ? (
         <SavedResults key={raw} ids={ids} />
       ) : (
