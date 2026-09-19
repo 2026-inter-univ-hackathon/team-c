@@ -167,20 +167,56 @@ h3 {
   color: var(--muted);
 }
 .footer-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 28px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 28px 48px;
   padding-top: 36px;
-  padding-bottom: 36px;
+  padding-bottom: 28px;
   font-size: 11px;
   line-height: 2;
 }
-.footer-inner strong {
+.footer-brand strong {
   font-size: 19px;
   color: var(--brown);
 }
-.footer-inner small {
+.footer-nav {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+}
+.footer-nav h2 {
+  margin-bottom: 4px;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  color: var(--brown);
+}
+.footer-nav ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.footer-nav a {
+  display: inline-block;
+  padding-block: 4px;
+}
+.footer-nav a:hover {
+  color: var(--brown);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.footer-bottom {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.footer-bottom p {
+  margin: 0;
+}
+.footer-bottom small {
   white-space: nowrap;
 }
 .skip-link {
@@ -566,7 +602,7 @@ h3 {
   flex-direction: column;
   gap: 16px;
 }
-.guideline-list > li {
+.guideline-list > div {
   font-size: 13px;
   line-height: 1.9;
   color: #51443b;
@@ -575,8 +611,12 @@ h3 {
   border: 1px solid var(--line);
   border-radius: 5px;
 }
-.guideline-list strong {
+.guideline-list dt {
+  font-weight: 700;
   color: var(--brown);
+}
+.guideline-list dd {
+  margin: 0;
 }
 .guideline-example {
   display: block;
@@ -1294,7 +1334,7 @@ meter::-moz-meter-bar {
     padding-right: 15px;
   }
   .footer-inner {
-    flex-wrap: wrap;
+    grid-template-columns: 1fr;
   }
 }
 @media (max-width: 720px) {
@@ -1589,16 +1629,23 @@ meter::-moz-meter-bar {
     margin-top: 45px;
   }
   .footer-inner {
-    gap: 18px;
+    gap: 22px;
     padding-top: 26px;
-    padding-bottom: 26px;
-    display: block;
+    padding-bottom: 22px;
   }
-  .footer-inner > p {
-    margin: 14px 0;
+  .footer-nav {
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  .footer-nav a {
+    padding-block: 8px;
+  }
+  .footer-bottom {
+    flex-direction: column;
+    align-items: flex-start;
     font-size: 10px;
   }
-  .footer-inner small {
+  .footer-bottom small {
     font-size: 9px;
   }
   .page-section h1 {
