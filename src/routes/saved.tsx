@@ -23,14 +23,11 @@ function SavedPage() {
       </p>
       {ids.length > 0 && (
         <ConfirmDialog
+          triggerLabel="保存をすべて解除"
+          triggerClassName="text-link"
           message="このブラウザに保存した職場をすべて解除しますか？"
           confirmLabel="すべて解除"
           onConfirm={clear}
-          trigger={(open) => (
-            <button type="button" className="text-link" onClick={open}>
-              保存をすべて解除
-            </button>
-          )}
         />
       )}
       <p className="data-note" role="status">

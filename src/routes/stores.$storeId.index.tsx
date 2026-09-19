@@ -13,7 +13,7 @@ import {
 import { ButtonLink } from "../components/button";
 import { Icon } from "../components/icon";
 import { Pagination } from "../components/pagination";
-export const Route = createFileRoute("/stores/$storeId")({
+export const Route = createFileRoute("/stores/$storeId/")({
   validateSearch: (raw: Record<string, unknown>) => ({
     page: z.coerce.number().int().min(1).max(10000).catch(1).parse(raw.page),
   }),
@@ -155,7 +155,15 @@ function DetailPage() {
                 <p className="eyebrow">REAL VOICES</p>
                 <h2>働いた人のホンネ</h2>
               </div>
-              <span className="small-muted">新しい口コミから表示</span>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="small-muted">新しい口コミから表示</span>
+                <ButtonLink
+                  to="/stores/$storeId/reviews/new"
+                  params={{ storeId: store.id }}
+                >
+                  レビューを書く
+                </ButtonLink>
+              </div>
             </div>
             {reviews.length ? (
               reviews.map((review) => (
