@@ -10,7 +10,9 @@ import {
   LoadingState,
   Rating,
 } from "../features/stores/store-ui";
+import { ButtonLink } from "../components/button";
 import { Icon } from "../components/icon";
+import { Pagination } from "../components/pagination";
 export const Route = createFileRoute("/stores/$storeId")({
   validateSearch: (raw: Record<string, unknown>) => ({
     page: z.coerce.number().int().min(1).max(10000).catch(1).parse(raw.page),
@@ -32,9 +34,9 @@ function DetailPage() {
       <main id="main" className="container page-section">
         <EmptyState title="職場が見つかりませんでした">
           <p>この職場は非公開、または削除された可能性があります。</p>
-          <Link className="button primary" to="/stores" search={defaultSearch}>
+          <ButtonLink to="/stores" search={defaultSearch}>
             職場を探す
-          </Link>
+          </ButtonLink>
         </EmptyState>
       </main>
     );
@@ -222,33 +224,14 @@ function DetailPage() {
               </EmptyState>
             )}
             {pageCount > 1 && (
-              <nav className="pagination" aria-label="口コミのページ">
-                <button
-                  disabled={page <= 1}
-                  onClick={() =>
-                    void navigate({
-                      search: { page: page - 1 },
-                      hash: "reviews",
-                    })
-                  }
-                >
-                  前へ
-                </button>
-                <span>
-                  {page} / {pageCount}
-                </span>
-                <button
-                  disabled={page >= pageCount}
-                  onClick={() =>
-                    void navigate({
-                      search: { page: page + 1 },
-                      hash: "reviews",
-                    })
-                  }
-                >
-                  次へ
-                </button>
-              </nav>
+              <Pagination
+                label="口コミのページ"
+                page={page}
+                pageCount={pageCount}
+                onPageChange={(next) =>
+                  void navigate({ search: { page: next }, hash: "reviews" })
+                }
+              />
             )}
           </section>
         </div>

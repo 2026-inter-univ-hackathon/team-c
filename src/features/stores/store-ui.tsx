@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { Button } from "../../components/button";
 import { Icon } from "../../components/icon";
 import { useFavorites } from "./favorites";
 import cafe from "../../../img/cafe.jpg";
@@ -157,13 +158,7 @@ export function ErrorState() {
     <main id="main" className="container page-section">
       <EmptyState title="情報を読み込めませんでした">
         <p>時間をおいて、もう一度お試しください。</p>
-        <button
-          type="button"
-          className="button primary"
-          onClick={() => window.location.reload()}
-        >
-          再読み込み
-        </button>
+        <Button onClick={() => window.location.reload()}>再読み込み</Button>
       </EmptyState>
     </main>
   );

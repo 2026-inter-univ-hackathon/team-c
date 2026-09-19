@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { Button, ButtonLink } from "../components/button";
+import { ConfirmDialog } from "../components/confirm-dialog";
+import { Pagination } from "../components/pagination";
 import { useFavorites } from "../features/stores/favorites";
 import { EmptyState, StoreCard } from "../features/stores/store-ui";
 import { searchStores } from "../server/store-functions";
@@ -19,18 +22,16 @@ function SavedPage() {
         あとでじっくり、見比べよう。保存はこのブラウザだけに反映されます。
       </p>
       {ids.length > 0 && (
-        <button
-          type="button"
-          className="text-link"
-          onClick={() => {
-            if (
-              window.confirm("このブラウザに保存した職場をすべて解除しますか？")
-            )
-              clear();
-          }}
-        >
-          保存をすべて解除
-        </button>
+        <ConfirmDialog
+          message="このブラウザに保存した職場をすべて解除しますか？"
+          confirmLabel="すべて解除"
+          onConfirm={clear}
+          trigger={(open) => (
+            <button type="button" className="text-link" onClick={open}>
+              保存をすべて解除
+            </button>
+          )}
+        />
       )}
       <p className="data-note" role="status">
         {message}
@@ -40,9 +41,9 @@ function SavedPage() {
       ) : (
         <EmptyState title="気になる職場を集めてみよう">
           <p>店舗のハートを押すと、ここからいつでも確認できます。</p>
-          <Link to="/stores" search={defaultSearch} className="button primary">
+          <ButtonLink to="/stores" search={defaultSearch}>
             バイト先を探す
-          </Link>
+          </ButtonLink>
         </EmptyState>
       )}
     </main>
@@ -74,12 +75,7 @@ function SavedResults({ ids }: { ids: string[] }) {
     return (
       <EmptyState title="保存した職場を読み込めませんでした">
         <p>時間をおいて再度お試しください。</p>
-        <button
-          className="button primary"
-          onClick={() => window.location.reload()}
-        >
-          再読み込み
-        </button>
+        <Button onClick={() => window.location.reload()}>再読み込み</Button>
       </EmptyState>
     );
   if (!result)
@@ -104,29 +100,15 @@ function SavedResults({ ids }: { ids: string[] }) {
         </EmptyState>
       )}
       {result.pageCount > 1 && (
-        <nav className="pagination" aria-label="保存した職場のページ">
-          <button
-            disabled={result.page <= 1}
-            onClick={() => {
-              setResult(null);
-              setPage(result.page - 1);
-            }}
-          >
-            前へ
-          </button>
-          <span>
-            {result.page} / {result.pageCount}
-          </span>
-          <button
-            disabled={result.page >= result.pageCount}
-            onClick={() => {
-              setResult(null);
-              setPage(result.page + 1);
-            }}
-          >
-            次へ
-          </button>
-        </nav>
+        <Pagination
+          label="保存した職場のページ"
+          page={result.page}
+          pageCount={result.pageCount}
+          onPageChange={(next) => {
+            setResult(null);
+            setPage(next);
+          }}
+        />
       )}
     </>
   );
