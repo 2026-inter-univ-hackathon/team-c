@@ -1,9 +1,10 @@
+import { FavoriteFeedbackProvider } from "../features/stores/favorite-feedback";
 import { Link, Outlet } from "@tanstack/react-router";
 import { defaultSearch } from "../schemas/store-search";
 import { Icon } from "./icon";
 export function SiteShell() {
   return (
-    <>
+    <FavoriteFeedbackProvider>
       <a className="skip-link" href="#main">
         本文へスキップ
       </a>
@@ -87,6 +88,6 @@ export function SiteShell() {
           </div>
         </div>
       </footer>
-    </>
+    </FavoriteFeedbackProvider>
   );
 }

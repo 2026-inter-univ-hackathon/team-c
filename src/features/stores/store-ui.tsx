@@ -27,7 +27,7 @@ export function categoryImage(code?: string) {
         : other;
 }
 export function FavoriteButton({ id, name }: { id: string; name: string }) {
-  const { ids, toggle, message } = useFavorites();
+  const { ids, toggle } = useFavorites();
   const saved = ids.includes(id);
   return (
     <div className="favorite-wrap">
@@ -41,9 +41,6 @@ export function FavoriteButton({ id, name }: { id: string; name: string }) {
         <Icon name="heart" size={18} />
         <span>{saved ? "保存済み" : "気になる"}</span>
       </button>
-      <span role="status" className="save-feedback">
-        {message}
-      </span>
     </div>
   );
 }
