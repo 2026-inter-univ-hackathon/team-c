@@ -13,6 +13,19 @@ import {
 import { ButtonLink } from "../components/button";
 import { Icon } from "../components/icon";
 import { Pagination } from "../components/pagination";
+function formatFuzzyPublishedAt(publishedAt: string) {
+  const parts = new Intl.DateTimeFormat("ja-JP", {
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    timeZone: "Asia/Tokyo",
+  }).formatToParts(new Date(publishedAt));
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = Number(parts.find((part) => part.type === "day")?.value);
+  const period = day <= 10 ? "上旬" : day <= 20 ? "中旬" : "下旬";
+  return `${year}年${month}月${period}`;
+}
 export const Route = createFileRoute("/stores/$storeId/")({
   validateSearch: (raw: Record<string, unknown>) => ({
     page: z.coerce.number().int().min(1).max(10000).catch(1).parse(raw.page),
@@ -188,12 +201,7 @@ function DetailPage() {
                       </p>
                     </div>
                     <time dateTime={review.publishedAt}>
-                      {new Intl.DateTimeFormat("ja-JP", {
-                        year: "numeric",
-                        month: "2-digit",
-                        day: "2-digit",
-                        timeZone: "Asia/Tokyo",
-                      }).format(new Date(review.publishedAt))}
+                      {formatFuzzyPublishedAt(review.publishedAt)}
                     </time>
                   </div>
                   <p className="review-summary">{review.summary}</p>
