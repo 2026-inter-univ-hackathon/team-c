@@ -47,9 +47,7 @@ export function SearchForm({
         defaultValue={search.q}
         maxLength={100}
       />
-      <Button type="submit">
-        検索する
-      </Button>
+      <Button type="submit">検索する</Button>
     </form>
   );
 }
