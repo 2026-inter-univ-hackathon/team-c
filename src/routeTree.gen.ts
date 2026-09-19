@@ -10,7 +10,12 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ContactRouteImport } from './routes/contact'
+import { Route as GuidelinesRouteImport } from './routes/guidelines'
+import { Route as OperatorRouteImport } from './routes/operator'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as SavedRouteImport } from './routes/saved'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as StoresIndexRouteImport } from './routes/stores.index'
 import { Route as StoresStoreIdIndexRouteImport } from './routes/stores.$storeId.index'
 import { Route as StoresStoreIdReviewsNewRouteImport } from './routes/stores.$storeId.reviews.new'
@@ -20,9 +25,34 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuidelinesRoute = GuidelinesRouteImport.update({
+  id: '/guidelines',
+  path: '/guidelines',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OperatorRoute = OperatorRouteImport.update({
+  id: '/operator',
+  path: '/operator',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SavedRoute = SavedRouteImport.update({
   id: '/saved',
   path: '/saved',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StoresIndexRoute = StoresIndexRouteImport.update({
@@ -43,14 +73,24 @@ const StoresStoreIdReviewsNewRoute = StoresStoreIdReviewsNewRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/contact': typeof ContactRoute
+  '/guidelines': typeof GuidelinesRoute
+  '/operator': typeof OperatorRoute
+  '/privacy': typeof PrivacyRoute
   '/saved': typeof SavedRoute
+  '/terms': typeof TermsRoute
   '/stores/': typeof StoresIndexRoute
   '/stores/$storeId/': typeof StoresStoreIdIndexRoute
   '/stores/$storeId/reviews/new': typeof StoresStoreIdReviewsNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/contact': typeof ContactRoute
+  '/guidelines': typeof GuidelinesRoute
+  '/operator': typeof OperatorRoute
+  '/privacy': typeof PrivacyRoute
   '/saved': typeof SavedRoute
+  '/terms': typeof TermsRoute
   '/stores': typeof StoresIndexRoute
   '/stores/$storeId': typeof StoresStoreIdIndexRoute
   '/stores/$storeId/reviews/new': typeof StoresStoreIdReviewsNewRoute
@@ -58,7 +98,12 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/contact': typeof ContactRoute
+  '/guidelines': typeof GuidelinesRoute
+  '/operator': typeof OperatorRoute
+  '/privacy': typeof PrivacyRoute
   '/saved': typeof SavedRoute
+  '/terms': typeof TermsRoute
   '/stores/': typeof StoresIndexRoute
   '/stores/$storeId/': typeof StoresStoreIdIndexRoute
   '/stores/$storeId/reviews/new': typeof StoresStoreIdReviewsNewRoute
@@ -67,21 +112,36 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/contact'
+    | '/guidelines'
+    | '/operator'
+    | '/privacy'
     | '/saved'
+    | '/terms'
     | '/stores/'
     | '/stores/$storeId/'
     | '/stores/$storeId/reviews/new'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/contact'
+    | '/guidelines'
+    | '/operator'
+    | '/privacy'
     | '/saved'
+    | '/terms'
     | '/stores'
     | '/stores/$storeId'
     | '/stores/$storeId/reviews/new'
   id:
     | '__root__'
     | '/'
+    | '/contact'
+    | '/guidelines'
+    | '/operator'
+    | '/privacy'
     | '/saved'
+    | '/terms'
     | '/stores/'
     | '/stores/$storeId/'
     | '/stores/$storeId/reviews/new'
@@ -89,7 +149,12 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ContactRoute: typeof ContactRoute
+  GuidelinesRoute: typeof GuidelinesRoute
+  OperatorRoute: typeof OperatorRoute
+  PrivacyRoute: typeof PrivacyRoute
   SavedRoute: typeof SavedRoute
+  TermsRoute: typeof TermsRoute
   StoresIndexRoute: typeof StoresIndexRoute
   StoresStoreIdIndexRoute: typeof StoresStoreIdIndexRoute
   StoresStoreIdReviewsNewRoute: typeof StoresStoreIdReviewsNewRoute
@@ -104,11 +169,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guidelines': {
+      id: '/guidelines'
+      path: '/guidelines'
+      fullPath: '/guidelines'
+      preLoaderRoute: typeof GuidelinesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/operator': {
+      id: '/operator'
+      path: '/operator'
+      fullPath: '/operator'
+      preLoaderRoute: typeof OperatorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/saved': {
       id: '/saved'
       path: '/saved'
       fullPath: '/saved'
       preLoaderRoute: typeof SavedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/stores/': {
@@ -137,7 +237,12 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ContactRoute: ContactRoute,
+  GuidelinesRoute: GuidelinesRoute,
+  OperatorRoute: OperatorRoute,
+  PrivacyRoute: PrivacyRoute,
   SavedRoute: SavedRoute,
+  TermsRoute: TermsRoute,
   StoresIndexRoute: StoresIndexRoute,
   StoresStoreIdIndexRoute: StoresStoreIdIndexRoute,
   StoresStoreIdReviewsNewRoute: StoresStoreIdReviewsNewRoute,
