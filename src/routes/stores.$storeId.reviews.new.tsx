@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { Button } from "../components/button";
 import { defaultSearch } from "../schemas/store-search";
 import { withDb } from "../server/db";
 import { DuplicateReviewError } from "../server/errors";
@@ -241,31 +242,19 @@ function ReviewForm({
         </div>
 
         <div className="flex items-center justify-between gap-3 border-t border-zinc-200 px-5 py-4">
-          <button
-            type="button"
+          <Button
+            variant="secondary"
             onClick={goBack}
             disabled={step === 0 || isSubmitting}
-            className="rounded border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 disabled:opacity-40"
           >
             戻る
-          </button>
+          </Button>
           {step < LAST_INPUT_STEP ? (
-            <button
-              type="button"
-              onClick={goNext}
-              className="rounded bg-sky-700 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-800"
-            >
-              次へ
-            </button>
+            <Button onClick={goNext}>次へ</Button>
           ) : (
-            <button
-              type="button"
-              onClick={submit}
-              disabled={isSubmitting}
-              className="rounded bg-sky-700 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-800 disabled:opacity-60"
-            >
+            <Button onClick={submit} disabled={isSubmitting}>
               {isSubmitting ? "投稿中..." : "投稿する"}
-            </button>
+            </Button>
           )}
         </div>
       </div>

@@ -12,7 +12,9 @@ import {
   LoadingState,
 } from "../features/stores/store-ui";
 import { SearchForm } from "../features/stores/search-form";
+import { ButtonLink } from "../components/button";
 import { Icon } from "../components/icon";
+import { Pagination } from "../components/pagination";
 export const Route = createFileRoute("/stores/")({
   validateSearch: parseSearchParams,
   loaderDeps: ({ search }) => search,
@@ -173,33 +175,18 @@ function StoresPage() {
                 <p>
                   キーワードを短くするか、絞り込み条件を変更してみてください。
                 </p>
-                <Link
-                  className="button primary"
-                  to="/stores"
-                  search={defaultSearch}
-                >
+                <ButtonLink to="/stores" search={defaultSearch}>
                   すべての職場を見る
-                </Link>
+                </ButtonLink>
               </EmptyState>
             )}
             {result.pageCount > 1 && (
-              <nav className="pagination" aria-label="検索結果のページ">
-                <button
-                  disabled={result.page <= 1}
-                  onClick={() => update({ page: result.page - 1 })}
-                >
-                  前へ
-                </button>
-                <span>
-                  {result.page} / {result.pageCount}
-                </span>
-                <button
-                  disabled={result.page >= result.pageCount}
-                  onClick={() => update({ page: result.page + 1 })}
-                >
-                  次へ
-                </button>
-              </nav>
+              <Pagination
+                label="検索結果のページ"
+                page={result.page}
+                pageCount={result.pageCount}
+                onPageChange={(next) => update({ page: next })}
+              />
             )}
             <p className="data-note">
               評価は公開口コミの各評価点の単純平均です。写真は業種のイメージです。
