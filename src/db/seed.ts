@@ -543,6 +543,137 @@ async function seed() {
         },
       ])
       .onConflictDoNothing();
+
+    // Existing seed IDs and manually created data are preserved.
+    // Fixed IDs and dates make repeated runs deterministic.
+    const demoId = (prefix: string, index: number) =>
+      `${prefix}-0000-4000-8000-${String(index).padStart(12, "0")}`;
+    const demoUsers = Array.from({ length: 5 }, (_, index) => ({
+      id: demoId("10000000", 101 + index),
+      email: `seed.reviewer.${index + 1}@example.com`,
+      displayName: `デモ投稿者${index + 1}`,
+      status: "ACTIVE",
+      emailVerifiedAt: publishedAt,
+    }));
+    await tx.insert(schema.users).values(demoUsers).onConflictDoNothing();
+
+    const areas = [
+      ["東京都", "新宿区", "早稲田"],
+      ["東京都", "豊島区", "池袋"],
+      ["東京都", "北区", "赤羽"],
+      ["東京都", "渋谷区", "渋谷"],
+      ["東京都", "千代田区", "神田"],
+      ["神奈川県", "横浜市", "横浜"],
+      ["神奈川県", "川崎市", "川崎"],
+      ["埼玉県", "さいたま市", "大宮"],
+      ["千葉県", "船橋市", "船橋"],
+      ["千葉県", "千葉市", "千葉"],
+    ] as const;
+    const industries = [
+      {
+        name: "こもれびカフェ",
+        categoryId: seedIds.categories.cafe,
+        task: "ドリンク作りとレジ操作",
+        peak: "休日の昼過ぎ",
+      },
+      {
+        name: "まちかどマート",
+        categoryId: seedIds.categories.convenience,
+        task: "品出しと宅配便の受付",
+        peak: "平日の朝と夕方",
+      },
+      {
+        name: "ひなた学習室",
+        categoryId: seedIds.categories.education,
+        task: "教材の準備と生徒への説明",
+        peak: "定期テスト前の夕方",
+      },
+    ];
+    const impressions = [
+      "忙しい時間は自分から確認する必要があり、慣れるまで時間がかかりました。",
+      "仕事内容は覚えることが多く、研修時間がもう少しあると安心だと感じました。",
+      "基本的な手順は決まっていて、慣れてからは自分のペースで働けました。",
+      "先輩に質問しやすく、学校の予定に合わせたシフト相談もできました。",
+      "研修で一つずつ練習でき、困ったときも周囲のフォローがありました。",
+    ];
+    const demoStores: (typeof schema.stores.$inferInsert)[] = [];
+    const demoCategories: (typeof schema.storeCategories.$inferInsert)[] = [];
+    const demoReviews: (typeof schema.reviews.$inferInsert)[] = [];
+    const demoAnswers: (typeof schema.reviewAnswers.$inferInsert)[] = [];
+    const demoRatings: (typeof schema.reviewRatings.$inferInsert)[] = [];
+    for (let i = 0; i < 47; i++) {
+      const area = areas[i % areas.length]!;
+      const industry = industries[i % industries.length]!;
+      const storeId = demoId("40000000", 101 + i);
+      const name = `【デモ】${industry.name} ${area[2]}${Math.floor(i / 30) + 1}号店`;
+      demoStores.push({
+        id: storeId,
+        name,
+        normalizedName: name.toLowerCase(),
+        prefecture: area[0],
+        city: area[1],
+        address: "架空の店舗（所在地はデモ用）",
+        externalSource: "seed",
+        externalId: `demo-store-${i + 1}`,
+        status: "ACTIVE",
+      });
+      demoCategories.push({ storeId, categoryId: industry.categoryId });
+      for (let j = 0; j < (i % 5) + 1; j++) {
+        const reviewId = demoId("90000000", 1001 + i * 5 + j);
+        const score = ((i + j) % 5) + 1;
+        const current = (i + j) % 2 === 0;
+        demoReviews.push({
+          id: reviewId,
+          storeId,
+          userId: demoUsers[j]!.id,
+          reviewFormId: seedIds.reviewForm,
+          employmentStartYear: 2021 + ((i + j) % 4),
+          employmentEndYear: current ? null : 2025,
+          employmentStatus: current ? "CURRENT" : "FORMER",
+          publicAuthorLabel: `デモ経験者${j + 1}`,
+          summary: `【架空の口コミ】${industry.task}を担当しました。${impressions[score - 1]}`,
+          status: "PUBLISHED",
+          publishedAt: new Date(
+            Date.UTC(2026, (i + j) % 8, 1 + ((i * 7 + j * 11) % 28), 3),
+          ),
+        });
+        const answers = [
+          `【架空の回答】${industry.task}は覚えることが多いので、最初に手順をメモしておくと安心でした。`,
+          `【架空の回答】${impressions[score - 1]} ミスの後は手順を見直して次の対応を確認しました。`,
+          `【架空の回答】${industry.peak}に対応が集中しました。事前に準備を済ませ、周囲と分担していました。`,
+        ];
+        Object.values(seedIds.questions).forEach((questionId, k) => {
+          demoAnswers.push({
+            reviewId,
+            reviewFormId: seedIds.reviewForm,
+            reviewQuestionId: questionId,
+            answerText: answers[k]!,
+          });
+        });
+        Object.values(seedIds.dimensions).forEach((dimensionId, k) => {
+          demoRatings.push({
+            reviewId,
+            reviewFormId: seedIds.reviewForm,
+            ratingDimensionId: dimensionId,
+            score: Math.max(1, Math.min(5, score + (k % 3) - 1)),
+          });
+        });
+      }
+    }
+    await tx.insert(schema.stores).values(demoStores).onConflictDoNothing();
+    await tx
+      .insert(schema.storeCategories)
+      .values(demoCategories)
+      .onConflictDoNothing();
+    await tx.insert(schema.reviews).values(demoReviews).onConflictDoNothing();
+    await tx
+      .insert(schema.reviewAnswers)
+      .values(demoAnswers)
+      .onConflictDoNothing();
+    await tx
+      .insert(schema.reviewRatings)
+      .values(demoRatings)
+      .onConflictDoNothing();
   });
 }
 
