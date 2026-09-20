@@ -56,10 +56,7 @@ export const getStoreDetail = createServerFn({ method: "GET" })
           store,
           page,
           pageCount,
-          reviews: reviews.map((review) => ({
-            ...review,
-            publishedAt: review.publishedAt.toISOString(),
-          })),
+          reviews,
         };
       }),
     ),

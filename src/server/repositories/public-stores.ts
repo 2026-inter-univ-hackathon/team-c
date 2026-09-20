@@ -3,21 +3,22 @@ import type { Db } from "../../db/client";
 import {
   categories,
   ratingDimensions,
-  reviewAnswers,
-  reviewQuestions,
   reviewRatings,
   reviews,
   storeCategories,
   stores,
 } from "../../db/schema";
+import {
+  fuzzyPublishedAt,
+  ratingCodes,
+  type CreateReviewInput,
+} from "../../schemas/review-flow";
 import type {
-  EmploymentStatus,
   NormalizedPublicListOptions,
   PublicCategory,
   PublicListOptions,
   PublicRatingSummary,
   PublicReview,
-  PublicReviewAnswer,
   PublicReviewRating,
   PublicStoreDetail,
   PublicStoreSummary,
@@ -25,22 +26,102 @@ import type {
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
-const REVIEW_EXCERPT_LENGTH = 96;
+const visibleReview = () =>
+  and(
+    eq(reviews.status, "PUBLISHED"),
+    isNull(reviews.deletedAt),
+    isNull(reviews.hiddenAt),
+    isNotNull(reviews.publishedAt),
+    isNotNull(reviews.occupation),
+  );
 
 export function normalizePublicListOptions(
   options: PublicListOptions = {},
 ): NormalizedPublicListOptions {
   const rawLimit = options.limit ?? DEFAULT_LIMIT;
   const rawOffset = options.offset ?? 0;
+  return {
+    limit: Number.isFinite(rawLimit)
+      ? Math.min(Math.max(Math.trunc(rawLimit), 1), MAX_LIMIT)
+      : DEFAULT_LIMIT,
+    offset: Number.isFinite(rawOffset) ? Math.max(Math.trunc(rawOffset), 0) : 0,
+  };
+}
 
-  const limit = Number.isFinite(rawLimit)
-    ? Math.min(Math.max(Math.trunc(rawLimit), 1), MAX_LIMIT)
-    : DEFAULT_LIMIT;
-  const offset = Number.isFinite(rawOffset)
-    ? Math.max(Math.trunc(rawOffset), 0)
-    : 0;
+async function categoriesFor(
+  db: Db,
+  ids: string[],
+): Promise<Map<string, PublicCategory[]>> {
+  const map = new Map<string, PublicCategory[]>();
+  if (!ids.length) return map;
+  const rows = await db
+    .select({
+      storeId: storeCategories.storeId,
+      id: categories.id,
+      code: categories.code,
+      name: categories.name,
+    })
+    .from(storeCategories)
+    .innerJoin(categories, eq(storeCategories.categoryId, categories.id))
+    .where(
+      and(inArray(storeCategories.storeId, ids), eq(categories.isActive, true)),
+    )
+    .orderBy(asc(categories.name));
+  for (const row of rows)
+    map.set(row.storeId, [
+      ...(map.get(row.storeId) ?? []),
+      { id: row.id, code: row.code, name: row.name },
+    ]);
+  return map;
+}
 
-  return { limit, offset };
+async function metricsFor(db: Db, ids: string[]) {
+  const map = new Map<
+    string,
+    {
+      reviewCount: number;
+      averageRating: number | null;
+      reviewExcerpt: string | null;
+    }
+  >();
+  if (!ids.length) return map;
+  const rows = await db
+    .select({
+      storeId: reviews.storeId,
+      id: reviews.id,
+      summary: reviews.summary,
+      publishedAt: reviews.publishedAt,
+    })
+    .from(reviews)
+    .where(and(inArray(reviews.storeId, ids), visibleReview()))
+    .orderBy(desc(reviews.publishedAt), desc(reviews.id));
+  const ratings = await ratingsFor(
+    db,
+    rows.map((row) => row.id),
+  );
+  for (const row of rows) {
+    const old = map.get(row.storeId) ?? {
+      reviewCount: 0,
+      averageRating: null,
+      reviewExcerpt: null,
+    };
+    const values = ratings.get(row.id) ?? [];
+    const score =
+      values.length === 4
+        ? values.reduce((sum, value) => sum + value.score, 0) / 4
+        : null;
+    const scoreTotal =
+      (old.averageRating ?? 0) * old.reviewCount + (score ?? 0);
+    map.set(row.storeId, {
+      reviewCount: old.reviewCount + 1,
+      averageRating:
+        score === null ? old.averageRating : scoreTotal / (old.reviewCount + 1),
+      reviewExcerpt:
+        old.reviewExcerpt ??
+        row.summary.trim().replace(/\s+/g, " ").slice(0, 96),
+    });
+  }
+  return map;
 }
 
 export async function listPublicStores(
@@ -56,28 +137,22 @@ export async function listPublicStores(
       city: stores.city,
     })
     .from(stores)
-    .where(activeStoreWhere())
-    .orderBy(asc(stores.name), asc(stores.id))
+    .where(and(eq(stores.status, "ACTIVE"), isNull(stores.deletedAt)))
+    .orderBy(asc(stores.name))
     .limit(limit)
     .offset(offset);
-
-  const storeIds = rows.map((row) => row.id);
-  const [categoriesByStoreId, metricsByStoreId] = await Promise.all([
-    listCategoriesByStoreId(db, storeIds),
-    getStoreMetricsByStoreId(db, storeIds),
+  const ids = rows.map((row) => row.id);
+  const [cats, metrics] = await Promise.all([
+    categoriesFor(db, ids),
+    metricsFor(db, ids),
   ]);
-
-  return rows.map((row) => {
-    const metrics = metricsByStoreId.get(row.id);
-
-    return {
-      ...row,
-      categories: categoriesByStoreId.get(row.id) ?? [],
-      reviewCount: metrics?.reviewCount ?? 0,
-      averageRating: metrics?.averageRating ?? null,
-      reviewExcerpt: metrics?.reviewExcerpt ?? null,
-    };
-  });
+  return rows.map((row) => ({
+    ...row,
+    categories: cats.get(row.id) ?? [],
+    reviewCount: metrics.get(row.id)?.reviewCount ?? 0,
+    averageRating: metrics.get(row.id)?.averageRating ?? null,
+    reviewExcerpt: metrics.get(row.id)?.reviewExcerpt ?? null,
+  }));
 }
 
 export async function getPublicStoreById(
@@ -94,29 +169,104 @@ export async function getPublicStoreById(
       address: stores.address,
     })
     .from(stores)
-    .where(and(eq(stores.id, storeId), activeStoreWhere()))
+    .where(
+      and(
+        eq(stores.id, storeId),
+        eq(stores.status, "ACTIVE"),
+        isNull(stores.deletedAt),
+      ),
+    )
     .limit(1);
-
-  if (!row) {
-    return null;
-  }
-
-  const [categoriesByStoreId, metricsByStoreId, ratingSummary] =
-    await Promise.all([
-      listCategoriesByStoreId(db, [row.id]),
-      getStoreMetricsByStoreId(db, [row.id]),
-      getRatingSummaryByStoreId(db, row.id),
-    ]);
-  const metrics = metricsByStoreId.get(row.id);
-
+  if (!row) return null;
+  const [cats, metrics, ratingSummary] = await Promise.all([
+    categoriesFor(db, [storeId]),
+    metricsFor(db, [storeId]),
+    ratingSummaryFor(db, storeId),
+  ]);
+  const m = metrics.get(storeId);
   return {
     ...row,
-    categories: categoriesByStoreId.get(row.id) ?? [],
-    reviewCount: metrics?.reviewCount ?? 0,
-    averageRating: metrics?.averageRating ?? null,
-    reviewExcerpt: metrics?.reviewExcerpt ?? null,
+    categories: cats.get(storeId) ?? [],
+    reviewCount: m?.reviewCount ?? 0,
+    averageRating: m?.averageRating ?? null,
+    reviewExcerpt: m?.reviewExcerpt ?? null,
     ratingSummary,
   };
+}
+
+async function ratingsFor(
+  db: Db,
+  reviewIds: string[],
+): Promise<Map<string, PublicReviewRating[]>> {
+  const map = new Map<string, PublicReviewRating[]>();
+  if (!reviewIds.length) return map;
+  const rows = await db
+    .select({
+      reviewId: reviewRatings.reviewId,
+      code: ratingDimensions.code,
+      label: ratingDimensions.label,
+      order: ratingDimensions.displayOrder,
+      score: reviewRatings.score,
+    })
+    .from(reviewRatings)
+    .innerJoin(
+      ratingDimensions,
+      eq(reviewRatings.ratingDimensionId, ratingDimensions.id),
+    )
+    .where(
+      and(
+        inArray(reviewRatings.reviewId, reviewIds),
+        inArray(ratingDimensions.code, [...ratingCodes]),
+      ),
+    );
+  for (const row of rows)
+    map.set(row.reviewId, [
+      ...(map.get(row.reviewId) ?? []),
+      {
+        dimensionCode: row.code,
+        dimensionLabel: row.label,
+        displayOrder: row.order,
+        score: row.score,
+      },
+    ]);
+  return map;
+}
+
+async function ratingSummaryFor(
+  db: Db,
+  storeId: string,
+): Promise<PublicRatingSummary[]> {
+  const dimensions = await db
+    .select({
+      id: ratingDimensions.id,
+      code: ratingDimensions.code,
+      label: ratingDimensions.label,
+      order: ratingDimensions.displayOrder,
+    })
+    .from(ratingDimensions)
+    .where(inArray(ratingDimensions.code, [...ratingCodes]))
+    .orderBy(asc(ratingDimensions.displayOrder));
+  const reviewRows = await db
+    .select({ id: reviews.id })
+    .from(reviews)
+    .where(and(eq(reviews.storeId, storeId), visibleReview()));
+  const ratings = await ratingsFor(
+    db,
+    reviewRows.map((row) => row.id),
+  );
+  return dimensions.map((dimension) => {
+    const scores = [...ratings.values()]
+      .flat()
+      .filter((rating) => rating.dimensionCode === dimension.code);
+    return {
+      dimensionCode: dimension.code,
+      dimensionLabel: dimension.label,
+      displayOrder: dimension.order,
+      averageScore: scores.length
+        ? scores.reduce((sum, value) => sum + value.score, 0) / scores.length
+        : null,
+    };
+  });
 }
 
 export async function listPublicReviewsByStoreId(
@@ -129,333 +279,57 @@ export async function listPublicReviewsByStoreId(
     .select({
       id: reviews.id,
       summary: reviews.summary,
-      publicAuthorLabel: reviews.publicAuthorLabel,
-      employmentStartYear: reviews.employmentStartYear,
-      employmentEndYear: reviews.employmentEndYear,
       employmentStatus: reviews.employmentStatus,
+      occupation: reviews.occupation,
+      workDuration: reviews.workDuration,
+      atmosphereTags: reviews.atmosphereTags,
+      staffTags: reviews.staffTags,
+      managerPresence: reviews.managerPresence,
+      recommendation: reviews.recommendation,
       publishedAt: reviews.publishedAt,
     })
     .from(reviews)
-    .innerJoin(stores, and(eq(reviews.storeId, stores.id), activeStoreWhere()))
-    .where(and(eq(reviews.storeId, storeId), publishedReviewWhere()))
+    .innerJoin(stores, eq(stores.id, reviews.storeId))
+    .where(
+      and(
+        eq(reviews.storeId, storeId),
+        visibleReview(),
+        eq(stores.status, "ACTIVE"),
+        isNull(stores.deletedAt),
+      ),
+    )
     .orderBy(desc(reviews.publishedAt), desc(reviews.id))
     .limit(limit)
     .offset(offset);
-
-  const reviewIds = rows.map((row) => row.id);
-  const [answersByReviewId, ratingsByReviewId] = await Promise.all([
-    listAnswersByReviewId(db, reviewIds),
-    listRatingsByReviewId(db, reviewIds),
-  ]);
-
+  const ratings = await ratingsFor(
+    db,
+    rows.map((row) => row.id),
+  );
   return rows.map((row) => {
-    if (!row.publishedAt) {
-      throw new Error("Published review row has no publishedAt");
-    }
-
+    const values = ratings.get(row.id) ?? [];
+    const byCode = Object.fromEntries(
+      values.map((value) => [value.dimensionCode, value.score]),
+    );
+    const scoreInput = Object.fromEntries(
+      ratingCodes.map((code) => [code, byCode[code] ?? 0]),
+    ) as CreateReviewInput["ratings"];
     return {
       id: row.id,
       summary: row.summary,
-      publicAuthorLabel: row.publicAuthorLabel,
-      employmentStartYear: row.employmentStartYear,
-      employmentEndYear: row.employmentEndYear,
-      employmentStatus: row.employmentStatus as EmploymentStatus,
-      publishedAt: row.publishedAt,
-      answers: answersByReviewId.get(row.id) ?? [],
-      ratings: ratingsByReviewId.get(row.id) ?? [],
+      employmentStatus:
+        row.employmentStatus as PublicReview["employmentStatus"],
+      occupation: row.occupation as PublicReview["occupation"],
+      workDuration: row.workDuration as PublicReview["workDuration"],
+      atmosphereTags: row.atmosphereTags as PublicReview["atmosphereTags"],
+      staffTags: row.staffTags as PublicReview["staffTags"],
+      managerPresence: row.managerPresence as PublicReview["managerPresence"],
+      recommendation: row.recommendation as PublicReview["recommendation"],
+      publishedAt: fuzzyPublishedAt(row.publishedAt!),
+      ratings: values.sort((a, b) => a.displayOrder - b.displayOrder),
+      overallScore:
+        values.length === 4
+          ? Object.values(scoreInput).reduce((sum, value) => sum + value, 0) / 4
+          : 0,
     };
   });
-}
-
-function activeStoreWhere() {
-  return and(eq(stores.status, "ACTIVE"), isNull(stores.deletedAt));
-}
-
-function publishedReviewWhere() {
-  return and(
-    eq(reviews.status, "PUBLISHED"),
-    isNull(reviews.deletedAt),
-    isNull(reviews.hiddenAt),
-    isNotNull(reviews.publishedAt),
-  );
-}
-
-async function listCategoriesByStoreId(
-  db: Db,
-  storeIds: string[],
-): Promise<Map<string, PublicCategory[]>> {
-  if (storeIds.length === 0) {
-    return new Map();
-  }
-
-  const rows = await db
-    .select({
-      storeId: storeCategories.storeId,
-      id: categories.id,
-      code: categories.code,
-      name: categories.name,
-    })
-    .from(storeCategories)
-    .innerJoin(categories, eq(storeCategories.categoryId, categories.id))
-    .where(
-      and(
-        inArray(storeCategories.storeId, storeIds),
-        eq(categories.isActive, true),
-      ),
-    )
-    .orderBy(asc(categories.name), asc(categories.id));
-
-  const map = new Map<string, PublicCategory[]>();
-
-  for (const row of rows) {
-    const list = map.get(row.storeId) ?? [];
-    list.push({ id: row.id, code: row.code, name: row.name });
-    map.set(row.storeId, list);
-  }
-
-  return map;
-}
-
-type StoreMetrics = {
-  reviewCount: number;
-  averageRating: number | null;
-  reviewExcerpt: string | null;
-};
-
-async function getStoreMetricsByStoreId(
-  db: Db,
-  storeIds: string[],
-): Promise<Map<string, StoreMetrics>> {
-  if (storeIds.length === 0) {
-    return new Map();
-  }
-
-  const reviewRows = await db
-    .select({
-      storeId: reviews.storeId,
-      reviewId: reviews.id,
-      summary: reviews.summary,
-      publishedAt: reviews.publishedAt,
-    })
-    .from(reviews)
-    .where(and(inArray(reviews.storeId, storeIds), publishedReviewWhere()))
-    .orderBy(desc(reviews.publishedAt), desc(reviews.id));
-
-  const reviewIds = reviewRows.map((row) => row.reviewId);
-  const ratingRows =
-    reviewIds.length > 0
-      ? await db
-          .select({
-            reviewId: reviewRatings.reviewId,
-            score: reviewRatings.score,
-          })
-          .from(reviewRatings)
-          .where(inArray(reviewRatings.reviewId, reviewIds))
-      : [];
-  const storeIdByReviewId = new Map(
-    reviewRows.map((row) => [row.reviewId, row.storeId]),
-  );
-  const metricDrafts = new Map<
-    string,
-    StoreMetrics & { ratingScoreTotal: number; ratingScoreCount: number }
-  >();
-
-  for (const row of reviewRows) {
-    const draft = metricDrafts.get(row.storeId) ?? {
-      reviewCount: 0,
-      averageRating: null,
-      reviewExcerpt: null,
-      ratingScoreTotal: 0,
-      ratingScoreCount: 0,
-    };
-
-    draft.reviewCount += 1;
-    draft.reviewExcerpt ??= createReviewExcerpt(row.summary);
-    metricDrafts.set(row.storeId, draft);
-  }
-
-  for (const row of ratingRows) {
-    const storeId = storeIdByReviewId.get(row.reviewId);
-
-    if (!storeId) {
-      continue;
-    }
-
-    const draft = metricDrafts.get(storeId);
-
-    if (!draft) {
-      continue;
-    }
-
-    draft.ratingScoreTotal += row.score;
-    draft.ratingScoreCount += 1;
-  }
-
-  return new Map(
-    [...metricDrafts.entries()].map(([storeId, draft]) => [
-      storeId,
-      {
-        reviewCount: draft.reviewCount,
-        averageRating:
-          draft.ratingScoreCount > 0
-            ? roundToOneDecimal(draft.ratingScoreTotal / draft.ratingScoreCount)
-            : null,
-        reviewExcerpt: draft.reviewExcerpt,
-      },
-    ]),
-  );
-}
-
-async function getRatingSummaryByStoreId(
-  db: Db,
-  storeId: string,
-): Promise<PublicRatingSummary[]> {
-  const dimensions = await db
-    .select({
-      id: ratingDimensions.id,
-      code: ratingDimensions.code,
-      label: ratingDimensions.label,
-      displayOrder: ratingDimensions.displayOrder,
-    })
-    .from(ratingDimensions)
-    .where(eq(ratingDimensions.isActive, true))
-    .orderBy(asc(ratingDimensions.displayOrder), asc(ratingDimensions.id));
-
-  const ratingRows = await db
-    .select({
-      dimensionId: reviewRatings.ratingDimensionId,
-      score: reviewRatings.score,
-    })
-    .from(reviewRatings)
-    .innerJoin(reviews, eq(reviewRatings.reviewId, reviews.id))
-    .where(and(eq(reviews.storeId, storeId), publishedReviewWhere()));
-  const scoresByDimensionId = new Map<
-    string,
-    { total: number; count: number }
-  >();
-
-  for (const row of ratingRows) {
-    const draft = scoresByDimensionId.get(row.dimensionId) ?? {
-      total: 0,
-      count: 0,
-    };
-
-    draft.total += row.score;
-    draft.count += 1;
-    scoresByDimensionId.set(row.dimensionId, draft);
-  }
-
-  return dimensions.map((dimension) => {
-    const scores = scoresByDimensionId.get(dimension.id);
-
-    return {
-      dimensionCode: dimension.code,
-      dimensionLabel: dimension.label,
-      displayOrder: dimension.displayOrder,
-      averageScore: scores
-        ? roundToOneDecimal(scores.total / scores.count)
-        : null,
-    };
-  });
-}
-
-async function listAnswersByReviewId(
-  db: Db,
-  reviewIds: string[],
-): Promise<Map<string, PublicReviewAnswer[]>> {
-  if (reviewIds.length === 0) {
-    return new Map();
-  }
-
-  const rows = await db
-    .select({
-      reviewId: reviewAnswers.reviewId,
-      questionCode: reviewQuestions.code,
-      questionLabel: reviewQuestions.label,
-      displayOrder: reviewQuestions.displayOrder,
-      answerText: reviewAnswers.answerText,
-    })
-    .from(reviewAnswers)
-    .innerJoin(
-      reviewQuestions,
-      and(
-        eq(reviewAnswers.reviewQuestionId, reviewQuestions.id),
-        eq(reviewAnswers.reviewFormId, reviewQuestions.reviewFormId),
-      ),
-    )
-    .where(inArray(reviewAnswers.reviewId, reviewIds))
-    .orderBy(asc(reviewAnswers.reviewId), asc(reviewQuestions.displayOrder));
-
-  return groupRowsByReviewId(rows, (row) => ({
-    questionCode: row.questionCode,
-    questionLabel: row.questionLabel,
-    displayOrder: row.displayOrder,
-    answerText: row.answerText,
-  }));
-}
-
-async function listRatingsByReviewId(
-  db: Db,
-  reviewIds: string[],
-): Promise<Map<string, PublicReviewRating[]>> {
-  if (reviewIds.length === 0) {
-    return new Map();
-  }
-
-  const rows = await db
-    .select({
-      reviewId: reviewRatings.reviewId,
-      dimensionCode: ratingDimensions.code,
-      dimensionLabel: ratingDimensions.label,
-      displayOrder: ratingDimensions.displayOrder,
-      score: reviewRatings.score,
-    })
-    .from(reviewRatings)
-    .innerJoin(
-      ratingDimensions,
-      eq(reviewRatings.ratingDimensionId, ratingDimensions.id),
-    )
-    .where(
-      and(
-        inArray(reviewRatings.reviewId, reviewIds),
-        eq(ratingDimensions.isActive, true),
-      ),
-    )
-    .orderBy(asc(reviewRatings.reviewId), asc(ratingDimensions.displayOrder));
-
-  return groupRowsByReviewId(rows, (row) => ({
-    dimensionCode: row.dimensionCode,
-    dimensionLabel: row.dimensionLabel,
-    displayOrder: row.displayOrder,
-    score: row.score,
-  }));
-}
-
-function groupRowsByReviewId<T, R>(
-  rows: Array<T & { reviewId: string }>,
-  mapRow: (row: T & { reviewId: string }) => R,
-): Map<string, R[]> {
-  const map = new Map<string, R[]>();
-
-  for (const row of rows) {
-    const list = map.get(row.reviewId) ?? [];
-    list.push(mapRow(row));
-    map.set(row.reviewId, list);
-  }
-
-  return map;
-}
-
-function createReviewExcerpt(summary: string): string {
-  const normalized = summary.trim().replace(/\s+/g, " ");
-
-  if (normalized.length <= REVIEW_EXCERPT_LENGTH) {
-    return normalized;
-  }
-
-  return `${normalized.slice(0, REVIEW_EXCERPT_LENGTH)}...`;
-}
-
-function roundToOneDecimal(value: number): number {
-  return Math.round(value * 10) / 10;
 }

@@ -1,192 +1,136 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Db } from "../../../db/client";
+import {
+  createReviewInputSchema,
+  reviewScore,
+  GUIDELINE_VERSION,
+} from "../../../schemas/review-flow";
+import { DEV_REVIEW_USER_ID } from "../../dev-review-access";
 import type { PublishedReviewForm } from "../../repositories";
 import {
   createReviewUseCase,
   type CreateReviewDependencies,
 } from "./create-review";
-import { validateAgainstReviewForm } from "./schemas";
-import { createReviewInputSchema } from "./schemas";
 
 const db = {} as Db;
 const storeId = "40000000-0000-4000-8000-000000000001";
-const userId = "10000000-0000-4000-8000-000000000001";
-const questionId = "70000000-0000-4000-8000-000000000001";
-const dimensionId = "80000000-0000-4000-8000-000000000001";
-
 const form: PublishedReviewForm = {
-  id: "60000000-0000-4000-8000-000000000001",
-  version: 1,
-  questions: [
-    {
-      id: questionId,
-      code: "first_trap",
-      label: "働き始める前に知っておきたかったこと",
-      displayOrder: 10,
+  id: "60000000-0000-4000-8000-000000000002",
+  version: 2,
+  dimensions: ["atmosphere", "training", "workload", "flexibility"].map(
+    (code, index) => ({
+      id: `80000000-0000-4000-8000-${String(index + 2).padStart(12, "0")}`,
+      code,
+      label: code,
+      displayOrder: index,
       isRequired: true,
-      minLength: 10,
-      maxLength: 500,
-    },
-  ],
-  dimensions: [
-    {
-      id: dimensionId,
-      code: "overall",
-      label: "総合",
-      displayOrder: 10,
-      isRequired: true,
-    },
-  ],
+    }),
+  ),
 };
+const env = {
+  NODE_ENV: "development",
+  DATABASE_URL: "postgres://localhost/example_dev",
+  DEV_DATABASE_NAME: "example_dev",
+  ENABLE_DEV_REVIEW_POSTING: "true",
+};
+const validInput = () => ({
+  storeId,
+  employmentStatus: "CURRENT",
+  occupation: "COLLEGE",
+  workDuration: "AT_LEAST_YEAR",
+  atmosphereTags: ["FRIENDLY"],
+  staffTags: ["STUDENTS"],
+  managerPresence: "USUALLY_PRESENT",
+  recommendation: "YES",
+  ratings: { atmosphere: 4, training: 4, workload: 3, flexibility: 4 },
+  summary:
+    "忙しい時間帯はありますが、先輩がすぐに助けてくれました。予定の相談もしやすかったです。",
+  agreed: true,
+  guidelineVersion: GUIDELINE_VERSION,
+});
+const deps = (): CreateReviewDependencies => ({
+  getPublishedReviewForm: vi.fn().mockResolvedValue(form),
+  createPublishedReview: vi.fn().mockResolvedValue("review-id"),
+});
 
-function createDependencies(): CreateReviewDependencies {
-  return {
-    getPublishedReviewForm: vi.fn().mockResolvedValue(form),
-    createPublishedReview: vi.fn().mockResolvedValue("review-id"),
-  };
-}
-
-function validInput() {
-  return {
-    storeId,
-    userId,
-    employmentStatus: "FORMER" as const,
-    employmentStartYear: "2023",
-    employmentEndYear: "2025",
-    publicAuthorLabel: "学生アルバイト2年目",
-    summary: "研修が丁寧でした。",
-    answers: { [questionId]: "最初の3日は先輩がついてくれました。" },
-    ratings: { [dimensionId]: 4 },
-  };
-}
-
-describe("createReviewUseCase", () => {
-  it("公開中のフォームのIDで書き込む", async () => {
-    const dependencies = createDependencies();
-
-    const result = await createReviewUseCase(db, validInput(), dependencies);
-
+describe("review submission boundary", () => {
+  it("does not call storage in public mode even for valid input", async () => {
+    const d = deps();
+    await expect(
+      createReviewUseCase(db, validInput(), d, {
+        ...env,
+        NODE_ENV: "production",
+      }),
+    ).rejects.toThrow("開発環境");
+    expect(d.createPublishedReview).not.toHaveBeenCalled();
+  });
+  it("accepts a complete review and assigns the fixed user internally", async () => {
+    const d = deps();
+    const result = await createReviewUseCase(db, validInput(), d, env);
     expect(result).toEqual({ ok: true, reviewId: "review-id" });
-    expect(dependencies.createPublishedReview).toHaveBeenCalledWith(
+    expect(d.createPublishedReview).toHaveBeenCalledWith(
       db,
       expect.objectContaining({
-        storeId,
-        userId,
-        reviewFormId: form.id,
-        employmentStartYear: 2023,
-        employmentEndYear: 2025,
-        answers: [
-          {
-            reviewQuestionId: questionId,
-            answerText: "最初の3日は先輩がついてくれました。",
-          },
-        ],
-        ratings: [{ ratingDimensionId: dimensionId, score: 4 }],
+        userId: DEV_REVIEW_USER_ID,
+        guidelineVersion: GUIDELINE_VERSION,
+        ratings: expect.arrayContaining([
+          { ratingDimensionId: form.dimensions[0]!.id, score: 4 },
+        ]),
       }),
     );
   });
-
-  it("在籍中なら終了年を持たない", async () => {
-    const dependencies = createDependencies();
-
+  it("rejects missing consent on direct submission", async () => {
+    const d = deps();
     const result = await createReviewUseCase(
       db,
-      {
-        ...validInput(),
-        employmentStatus: "CURRENT",
-        employmentEndYear: "",
-      },
-      dependencies,
+      { ...validInput(), agreed: false },
+      d,
+      env,
     );
-
-    expect(result).toEqual({ ok: true, reviewId: "review-id" });
-    expect(dependencies.createPublishedReview).toHaveBeenCalledWith(
-      db,
-      expect.objectContaining({ employmentEndYear: null }),
-    );
+    expect(result.ok).toBe(false);
+    expect(d.createPublishedReview).not.toHaveBeenCalled();
   });
-
-  it("必須の評価が欠けていたら書き込まない", async () => {
-    const dependencies = createDependencies();
-
-    const result = await createReviewUseCase(
-      db,
-      { ...validInput(), ratings: {} },
-      dependencies,
-    );
-
-    expect(result).toEqual({
-      ok: false,
-      issues: [
-        {
-          path: `ratings.${dimensionId}`,
-          message: "「総合」を評価してください",
-        },
-      ],
-    });
-    expect(dependencies.createPublishedReview).not.toHaveBeenCalled();
+  it("rejects caller-controlled identity and score", () => {
+    expect(
+      createReviewInputSchema.safeParse({ ...validInput(), userId: "other" })
+        .success,
+    ).toBe(false);
+    expect(
+      createReviewInputSchema.safeParse({ ...validInput(), overallScore: 5 })
+        .success,
+    ).toBe(false);
   });
-});
-
-describe("createReviewInputSchema", () => {
-  it("在籍中に終了年があると弾く", () => {
-    const result = createReviewInputSchema.safeParse({
-      ...validInput(),
-      employmentStatus: "CURRENT",
-      employmentEndYear: "2025",
-    });
-
-    expect(result.success).toBe(false);
+  it("enforces tag cardinality, duplicates and score bounds", () => {
+    for (const input of [
+      { ...validInput(), atmosphereTags: [] },
+      { ...validInput(), staffTags: ["STUDENTS", "STUDENTS"] },
+      { ...validInput(), atmosphereTags: ["FRIENDLY", "QUIET", "FOCUSED"] },
+      { ...validInput(), ratings: { ...validInput().ratings, workload: 0 } },
+      { ...validInput(), ratings: { ...validInput().ratings, training: 6 } },
+      { ...validInput(), ratings: { ...validInput().ratings, training: 2.5 } },
+      { ...validInput(), guidelineVersion: 0 },
+    ])
+      expect(createReviewInputSchema.safeParse(input).success).toBe(false);
   });
-
-  it("終了年が開始年より前だと弾く", () => {
-    const result = createReviewInputSchema.safeParse({
-      ...validInput(),
-      employmentStartYear: "2025",
-      employmentEndYear: "2023",
-    });
-
-    expect(result.success).toBe(false);
+  it("enforces the 30–300 codepoint boundary", () => {
+    for (const length of [29, 301]) {
+      expect(
+        createReviewInputSchema.safeParse({
+          ...validInput(),
+          summary: "あ".repeat(length),
+        }).success,
+      ).toBe(false);
+    }
+    for (const length of [30, 300]) {
+      expect(
+        createReviewInputSchema.safeParse({
+          ...validInput(),
+          summary: "あ".repeat(length),
+        }).success,
+      ).toBe(true);
+    }
   });
-
-  it("空白だけの総合コメントを弾く", () => {
-    const result = createReviewInputSchema.safeParse({
-      ...validInput(),
-      summary: "   ",
-    });
-
-    expect(result.success).toBe(false);
-  });
-});
-
-describe("validateAgainstReviewForm", () => {
-  it("最低文字数を満たさない回答を指摘する", () => {
-    const parsed = createReviewInputSchema.parse({
-      ...validInput(),
-      answers: { [questionId]: "短い" },
-    });
-
-    expect(validateAgainstReviewForm(form, parsed)).toEqual([
-      {
-        path: `answers.${questionId}`,
-        message:
-          "「働き始める前に知っておきたかったこと」は10文字以上で入力してください",
-      },
-    ]);
-  });
-
-  it("フォームにない設問のIDを弾く", () => {
-    const unknownId = "70000000-0000-4000-8000-000000000099";
-    const parsed = createReviewInputSchema.parse({
-      ...validInput(),
-      answers: {
-        ...validInput().answers,
-        [unknownId]: "フォーム外の回答",
-      },
-    });
-
-    expect(validateAgainstReviewForm(form, parsed)).toEqual([
-      { path: `answers.${unknownId}`, message: "このフォームにない設問です" },
-    ]);
+  it("keeps calculation unrounded and recommendation separate", () => {
+    expect(reviewScore(validInput().ratings)).toBe(3.75);
   });
 });

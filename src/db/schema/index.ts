@@ -6,6 +6,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   smallint,
@@ -339,13 +340,19 @@ export const reviews = pgTable(
     reviewFormId: uuid("review_form_id")
       .notNull()
       .references(() => reviewForms.id),
-    employmentStartYear: smallint("employment_start_year").notNull(),
+    employmentStartYear: smallint("employment_start_year"),
     employmentEndYear: smallint("employment_end_year"),
     employmentStatus: varchar("employment_status", { length: 20 }).notNull(),
+    occupation: varchar("occupation", { length: 30 }),
+    workDuration: varchar("work_duration", { length: 30 }),
+    atmosphereTags: jsonb("atmosphere_tags").$type<string[]>(),
+    staffTags: jsonb("staff_tags").$type<string[]>(),
+    managerPresence: varchar("manager_presence", { length: 30 }),
+    recommendation: varchar("recommendation", { length: 20 }),
+    guidelineVersion: integer("guideline_version"),
+    guidelineAgreedAt: timestamp("guideline_agreed_at", { withTimezone: true }),
     summary: varchar("summary", { length: 500 }).notNull(),
-    publicAuthorLabel: varchar("public_author_label", {
-      length: 100,
-    }).notNull(),
+    publicAuthorLabel: varchar("public_author_label", { length: 100 }),
     status: varchar("status", { length: 20 }).notNull().default("DRAFT"),
     lockVersion: integer("lock_version").notNull().default(0),
     publishedAt: timestamp("published_at", { withTimezone: true }),
@@ -369,7 +376,7 @@ export const reviews = pgTable(
     ),
     check(
       "reviews_employment_status_check",
-      sql`${table.employmentStatus} in ('CURRENT', 'FORMER')`,
+      sql`${table.employmentStatus} in ('CURRENT', 'LEFT_RECENTLY', 'LEFT_LONG_AGO')`,
     ),
     check(
       "reviews_employment_year_range_check",
@@ -393,7 +400,7 @@ export const reviews = pgTable(
     ),
     check(
       "reviews_summary_length_check",
-      sql`char_length(trim(${table.summary})) between 1 and 500`,
+      sql`char_length(trim(${table.summary})) between 30 and 300`,
     ),
     index("reviews_store_id_idx").on(table.storeId),
     index("reviews_user_id_idx").on(table.userId),

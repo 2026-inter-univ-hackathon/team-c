@@ -11,21 +11,10 @@ import {
   Rating,
 } from "../features/stores/store-ui";
 import { ButtonLink } from "../components/button";
+import { ReviewCard } from "../features/stores/review-card";
+import { ratingCodes, type CreateReviewInput } from "../schemas/review-flow";
 import { Icon } from "../components/icon";
 import { Pagination } from "../components/pagination";
-function formatFuzzyPublishedAt(publishedAt: string) {
-  const parts = new Intl.DateTimeFormat("ja-JP", {
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-    timeZone: "Asia/Tokyo",
-  }).formatToParts(new Date(publishedAt));
-  const year = parts.find((part) => part.type === "year")?.value;
-  const month = parts.find((part) => part.type === "month")?.value;
-  const day = Number(parts.find((part) => part.type === "day")?.value);
-  const period = day <= 10 ? "上旬" : day <= 20 ? "中旬" : "下旬";
-  return `${year}年${month}月${period}`;
-}
 export const Route = createFileRoute("/stores/$storeId/")({
   validateSearch: (raw: Record<string, unknown>) => ({
     page: z.coerce.number().int().min(1).max(10000).catch(1).parse(raw.page),
@@ -180,55 +169,28 @@ function DetailPage() {
             </div>
             {reviews.length ? (
               reviews.map((review) => (
-                <article className="review-card" key={review.id}>
-                  <div className="review-author">
-                    <span className="author-icon">
-                      <Icon name="chat" size={22} />
-                    </span>
-                    <div>
-                      <strong>{review.publicAuthorLabel}</strong>
-                      <p>
-                        {review.employmentStatus === "CURRENT"
-                          ? "在職中"
-                          : "退職済み"}
-                        <span> / </span>
-                        {review.employmentStartYear}年〜
-                        {review.employmentEndYear
-                          ? review.employmentEndYear + "年"
-                          : review.employmentStatus === "CURRENT"
-                            ? "現在"
-                            : "終了年未登録"}
-                      </p>
-                    </div>
-                    <time dateTime={review.publishedAt}>
-                      {formatFuzzyPublishedAt(review.publishedAt)}
-                    </time>
-                  </div>
-                  <p className="review-summary">{review.summary}</p>
-                  <div className="review-ratings">
-                    {review.ratings.map((rating) => (
-                      <span key={rating.dimensionCode}>
-                        {rating.dimensionLabel}
-                        <b>★ {rating.score.toFixed(1)}</b>
-                      </span>
-                    ))}
-                  </div>
-                  {review.answers.length > 0 && (
-                    <details className="review-answers">
-                      <summary>
-                        この人の詳しい体験を読む <span>＋</span>
-                      </summary>
-                      <dl>
-                        {review.answers.map((answer) => (
-                          <div key={answer.questionCode}>
-                            <dt>{answer.questionLabel}</dt>
-                            <dd>{answer.answerText}</dd>
-                          </div>
-                        ))}
-                      </dl>
-                    </details>
-                  )}
-                </article>
+                <ReviewCard
+                  key={review.id}
+                  review={{
+                    employmentStatus: review.employmentStatus,
+                    occupation: review.occupation,
+                    workDuration: review.workDuration,
+                    atmosphereTags: review.atmosphereTags,
+                    staffTags: review.staffTags,
+                    managerPresence: review.managerPresence,
+                    recommendation: review.recommendation,
+                    summary: review.summary,
+                    publishedAt: review.publishedAt,
+                    ratings: Object.fromEntries(
+                      ratingCodes.map((code) => [
+                        code,
+                        review.ratings.find(
+                          (rating) => rating.dimensionCode === code,
+                        )?.score ?? 0,
+                      ]),
+                    ) as CreateReviewInput["ratings"],
+                  }}
+                />
               ))
             ) : (
               <EmptyState title="口コミはまだありません">
