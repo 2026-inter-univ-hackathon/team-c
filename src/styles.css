@@ -903,13 +903,35 @@ h3 {
   fill: var(--orange);
   stroke: var(--brown);
 }
-.save-feedback:not(:empty) {
-  display: block;
-  font-size: 10px;
-  line-height: 1.5;
-  max-width: 130px;
-  color: var(--brown);
-  margin-top: 5px;
+.favorite-notice {
+  position: fixed;
+  z-index: 100;
+  inset-inline: 16px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  width: max-content;
+  max-width: min(440px, calc(100% - 32px));
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--peach);
+  border-radius: 8px;
+  background: var(--brown);
+  color: white;
+  box-shadow: 0 4px 20px #352a2526;
+}
+.favorite-notice[data-visible="false"] {
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  pointer-events: none;
+}
+.favorite-notice p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 .location {
   display: flex;
