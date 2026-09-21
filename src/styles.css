@@ -660,6 +660,40 @@ h3 {
   font-size: 12px;
   color: var(--muted);
 }
+.guideline-ng-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.guideline-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 32px;
+}
+.guideline-tabs button {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 12px 2px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+}
+.guideline-tabs button:hover {
+  color: var(--brown);
+}
+.guideline-tabs button[aria-selected="true"] {
+  color: var(--brown);
+  border-bottom-color: var(--orange);
+}
 .mobile-only {
   display: none;
 }
