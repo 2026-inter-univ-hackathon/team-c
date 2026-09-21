@@ -49,9 +49,7 @@ function Home() {
             </div>
             <span className="hero-stamp">
               働く前に
-              <br />
               <b>ホンネ</b>
-              <br />
               をチェック
             </span>
           </div>
