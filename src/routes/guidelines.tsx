@@ -93,9 +93,7 @@ function GuidelinesPage() {
             <dl className="guideline-list">
               <div>
                 <dt>職場の雰囲気・人間関係</dt>
-                <dd>
-                  話しやすさ、質問のしやすさ、学生や同年代の多さなど
-                </dd>
+                <dd>話しやすさ、質問のしやすさ、学生や同年代の多さなど</dd>
               </div>
               <div>
                 <dt>業務内容の範囲</dt>
@@ -103,9 +101,7 @@ function GuidelinesPage() {
               </div>
               <div>
                 <dt>シフト・働きやすさ</dt>
-                <dd>
-                  シフトの組みやすさ、急な休みの相談しやすさなど
-                </dd>
+                <dd>シフトの組みやすさ、急な休みの相談しやすさなど</dd>
               </div>
             </dl>
           </section>
