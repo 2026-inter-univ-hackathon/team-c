@@ -142,15 +142,4 @@ export function authorBadge(
   return `${review.employmentStatus === "CURRENT" ? "現役スタッフ" : "退職したスタッフ"} / ${labels.occupation[review.occupation]}`;
 }
 
-export function fuzzyPublishedAt(date: Date) {
-  const parts = new Intl.DateTimeFormat("ja-JP", {
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-    timeZone: "Asia/Tokyo",
-  }).formatToParts(date);
-  const value = (type: string) =>
-    parts.find((part) => part.type === type)?.value ?? "";
-  const day = Number(value("day"));
-  return `${value("year")}年${value("month")}月${day <= 10 ? "上旬" : day <= 20 ? "中旬" : "下旬"}`;
-}
+export { formatFuzzyDate as fuzzyPublishedAt } from "../lib/fuzzy-date";
