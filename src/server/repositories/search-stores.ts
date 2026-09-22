@@ -19,6 +19,7 @@ import type { Db } from "../../db/client";
 import {
   categories,
   reviews,
+  ratingDimensions,
   reviewRatings,
   storeCategories,
   stores,
@@ -43,13 +44,28 @@ export async function searchPublicStores(db: Db, input: StoreSearch) {
     .select({
       storeId: reviews.storeId,
       reviewCount: countDistinct(reviews.id).as("review_count"),
-      averageRating: sql<number | null>`round(${avg(reviewRatings.score)}, 1)`
+      averageRating: sql<number | null>`${avg(reviewRatings.score)}`
         .mapWith(Number)
         .as("average_rating"),
     })
     .from(reviews)
     .leftJoin(reviewRatings, eq(reviewRatings.reviewId, reviews.id))
-    .where(publicReviewCondition())
+    .leftJoin(
+      ratingDimensions,
+      eq(ratingDimensions.id, reviewRatings.ratingDimensionId),
+    )
+    .where(
+      and(
+        publicReviewCondition(),
+        isNotNull(reviews.occupation),
+        inArray(ratingDimensions.code, [
+          "atmosphere",
+          "training",
+          "workload",
+          "flexibility",
+        ]),
+      ),
+    )
     .groupBy(reviews.storeId)
     .as("metrics");
   const condition = and(
