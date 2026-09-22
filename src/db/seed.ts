@@ -187,8 +187,8 @@ async function seed() {
         status: "ACTIVE",
       });
       categories.push({ storeId, categoryId: id("50000000", kind.category) });
-      // 口コミ本文・評価は5件以上集まった職場だけ公開されるため、
-      // 公開済み（5件）と公開前（1〜4件）の両方の状態をデモに用意する。
+      // 5件未満では投稿者属性を一般化し、5件以上では詳細表示するため、
+      // 両方の状態をデモに用意する。
       const reviewCountForStore = i < 3 ? 5 : i < 10 ? (i % 4) + 1 : 0;
       for (let j = 0; j < reviewCountForStore; j++) {
         const reviewId = id("90000000", 1001 + i * 5 + j);
