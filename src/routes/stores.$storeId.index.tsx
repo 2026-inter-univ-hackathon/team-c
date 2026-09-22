@@ -154,7 +154,7 @@ function DetailPage() {
             </div>
             <p className="data-note">
               {store.reviewsPublic
-                ? "公開口コミの評価点を単純平均しています。口コミがない項目は「—」で表示します。"
+                ? "公開口コミを勤続期間と在籍状況で重み付けして集計しています。口コミがない項目は「—」で表示します。"
                 : hiddenReviewsMessage(store.reviewCount)}
             </p>
           </section>

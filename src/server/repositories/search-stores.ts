@@ -1,9 +1,7 @@
 import {
   and,
   asc,
-  avg,
   count,
-  countDistinct,
   desc,
   eq,
   exists,
@@ -16,14 +14,7 @@ import {
   sql,
 } from "drizzle-orm";
 import type { Db } from "../../db/client";
-import {
-  categories,
-  reviews,
-  ratingDimensions,
-  reviewRatings,
-  storeCategories,
-  stores,
-} from "../../db/schema";
+import { categories, reviews, storeCategories, stores } from "../../db/schema";
 import { PAGE_SIZE, type StoreSearch } from "../../schemas/store-search";
 import {
   MIN_PUBLIC_REVIEW_COUNT,
@@ -43,39 +34,20 @@ export function literalPattern(value: string) {
   return `%${value.replace(/[\\%_]/g, "\\$&")}%`;
 }
 
+// Scores stay hidden until a store has enough reviews to protect reviewer
+// anonymity; only the count is exposed below the threshold.
+const reviewsPublicCondition = () =>
+  gte(stores.reviewCount, MIN_PUBLIC_REVIEW_COUNT);
+const publicOverallScore = () =>
+  sql<
+    number | null
+  >`case when ${reviewsPublicCondition()} then ${stores.overallScore} end`.mapWith(
+    Number,
+  );
+const publicBayesianScore = () =>
+  sql`case when ${reviewsPublicCondition()} then ${stores.bayesianScore} end`;
+
 export async function searchPublicStores(db: Db, input: StoreSearch) {
-  const metrics = db
-    .select({
-      storeId: reviews.storeId,
-      reviewCount: countDistinct(reviews.id).as("review_count"),
-      // Ratings stay hidden until a store has enough reviews to protect
-      // reviewer anonymity; only the count is exposed below the threshold.
-      averageRating: sql<
-        number | null
-      >`case when ${countDistinct(reviews.id)} >= ${MIN_PUBLIC_REVIEW_COUNT} then ${avg(reviewRatings.score)} end`
-        .mapWith(Number)
-        .as("average_rating"),
-    })
-    .from(reviews)
-    .leftJoin(reviewRatings, eq(reviewRatings.reviewId, reviews.id))
-    .leftJoin(
-      ratingDimensions,
-      eq(ratingDimensions.id, reviewRatings.ratingDimensionId),
-    )
-    .where(
-      and(
-        publicReviewCondition(),
-        isNotNull(reviews.occupation),
-        inArray(ratingDimensions.code, [
-          "atmosphere",
-          "training",
-          "workload",
-          "flexibility",
-        ]),
-      ),
-    )
-    .groupBy(reviews.storeId)
-    .as("metrics");
   const condition = and(
     publicStoreCondition(),
     input.q ? ilike(stores.name, literalPattern(input.q)) : undefined,
@@ -104,7 +76,7 @@ export async function searchPublicStores(db: Db, input: StoreSearch) {
         )
       : undefined,
     input.minRating > 0
-      ? gte(metrics.averageRating, input.minRating)
+      ? and(reviewsPublicCondition(), gte(stores.overallScore, input.minRating))
       : undefined,
     input.ids
       ? input.ids.length
@@ -115,16 +87,15 @@ export async function searchPublicStores(db: Db, input: StoreSearch) {
   const [totalRow] = await db
     .select({ total: count() })
     .from(stores)
-    .leftJoin(metrics, eq(metrics.storeId, stores.id))
     .where(condition);
   const total = totalRow.total;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const page = Math.min(input.page, pageCount);
   const order =
     input.sort === "rating"
-      ? sql`${metrics.averageRating} desc nulls last`
+      ? sql`${publicBayesianScore()} desc nulls last`
       : input.sort === "reviews"
-        ? sql`coalesce(${metrics.reviewCount}, 0) desc`
+        ? sql`${stores.reviewCount} desc`
         : asc(stores.name);
   const rows = await db
     .select({
@@ -132,11 +103,10 @@ export async function searchPublicStores(db: Db, input: StoreSearch) {
       name: stores.name,
       prefecture: stores.prefecture,
       city: stores.city,
-      reviewCount: metrics.reviewCount,
-      averageRating: metrics.averageRating,
+      reviewCount: stores.reviewCount,
+      averageRating: publicOverallScore(),
     })
     .from(stores)
-    .leftJoin(metrics, eq(metrics.storeId, stores.id))
     .where(condition)
     .orderBy(order, asc(stores.name), asc(stores.id))
     .limit(PAGE_SIZE)

@@ -2,6 +2,7 @@ import type { Db } from "../../db/client";
 import { reviewRatings, reviews } from "../../db/schema";
 import { DuplicateReviewError, isUniqueViolation } from "../errors";
 import type { CreateReviewRecord } from "./types";
+import { syncStoreWeightedScoresWithDb } from "../services/store-weighted-scores";
 
 export async function createPublishedReview(
   db: Db,
@@ -38,6 +39,7 @@ export async function createPublishedReview(
           score: rating.score,
         })),
       );
+      await syncStoreWeightedScoresWithDb(tx, input.storeId);
       return review.id;
     });
   } catch (error) {

@@ -27,7 +27,6 @@ import type {
   NormalizedPublicListOptions,
   PublicCategory,
   PublicListOptions,
-  PublicRatingSummary,
   PublicReview,
   PublicReviewRating,
   PublicStoreDetail,
@@ -107,55 +106,19 @@ export function applyReviewVisibility(
   };
 }
 
-const emptyMetrics = (): StoreMetrics => ({
-  reviewCount: 0,
-  reviewsPublic: false,
-  averageRating: null,
-  reviewExcerpt: null,
-});
-
-async function metricsFor(db: Db, ids: string[]) {
-  const map = new Map<string, StoreMetrics>();
+async function excerptsFor(db: Db, ids: string[]) {
+  const map = new Map<string, string>();
   if (!ids.length) return map;
   const rows = await db
-    .select({
+    .selectDistinctOn([reviews.storeId], {
       storeId: reviews.storeId,
-      id: reviews.id,
       summary: reviews.summary,
-      publishedAt: reviews.publishedAt,
     })
     .from(reviews)
     .where(and(inArray(reviews.storeId, ids), visibleReview()))
-    .orderBy(desc(reviews.publishedAt), desc(reviews.id));
-  const ratings = await ratingsFor(
-    db,
-    rows.map((row) => row.id),
-  );
-  const raw = new Map<string, Omit<StoreMetrics, "reviewsPublic">>();
-  for (const row of rows) {
-    const old = raw.get(row.storeId) ?? {
-      reviewCount: 0,
-      averageRating: null,
-      reviewExcerpt: null,
-    };
-    const values = ratings.get(row.id) ?? [];
-    const score =
-      values.length === 4
-        ? values.reduce((sum, value) => sum + value.score, 0) / 4
-        : null;
-    const scoreTotal =
-      (old.averageRating ?? 0) * old.reviewCount + (score ?? 0);
-    raw.set(row.storeId, {
-      reviewCount: old.reviewCount + 1,
-      averageRating:
-        score === null ? old.averageRating : scoreTotal / (old.reviewCount + 1),
-      reviewExcerpt:
-        old.reviewExcerpt ??
-        row.summary.trim().replace(/\s+/g, " ").slice(0, 96),
-    });
-  }
-  for (const [storeId, metrics] of raw)
-    map.set(storeId, applyReviewVisibility(metrics));
+    .orderBy(asc(reviews.storeId), desc(reviews.publishedAt), desc(reviews.id));
+  for (const row of rows)
+    map.set(row.storeId, row.summary.trim().replace(/\s+/g, " ").slice(0, 96));
   return map;
 }
 
@@ -170,6 +133,8 @@ export async function listPublicStores(
       name: stores.name,
       prefecture: stores.prefecture,
       city: stores.city,
+      reviewCount: stores.reviewCount,
+      averageRating: stores.overallScore,
     })
     .from(stores)
     .where(and(eq(stores.status, "ACTIVE"), isNull(stores.deletedAt)))
@@ -177,14 +142,18 @@ export async function listPublicStores(
     .limit(limit)
     .offset(offset);
   const ids = rows.map((row) => row.id);
-  const [cats, metrics] = await Promise.all([
+  const [cats, excerpts] = await Promise.all([
     categoriesFor(db, ids),
-    metricsFor(db, ids),
+    excerptsFor(db, ids),
   ]);
   return rows.map((row) => ({
     ...row,
     categories: cats.get(row.id) ?? [],
-    ...(metrics.get(row.id) ?? emptyMetrics()),
+    ...applyReviewVisibility({
+      reviewCount: row.reviewCount,
+      averageRating: row.averageRating,
+      reviewExcerpt: excerpts.get(row.id) ?? null,
+    }),
   }));
 }
 
@@ -200,6 +169,12 @@ export async function getPublicStoreById(
       prefecture: stores.prefecture,
       city: stores.city,
       address: stores.address,
+      reviewCount: stores.reviewCount,
+      averageRating: stores.overallScore,
+      avgAtmosphere: stores.avgAtmosphere,
+      avgTraining: stores.avgTraining,
+      avgWorkloadComfort: stores.avgWorkloadComfort,
+      avgFlexibility: stores.avgFlexibility,
     })
     .from(stores)
     .where(
@@ -211,17 +186,51 @@ export async function getPublicStoreById(
     )
     .limit(1);
   if (!row) return null;
-  const [cats, metrics, ratingSummary] = await Promise.all([
+  const [cats, excerpts] = await Promise.all([
     categoriesFor(db, [storeId]),
-    metricsFor(db, [storeId]),
-    ratingSummaryFor(db, storeId),
+    excerptsFor(db, [storeId]),
   ]);
-  const m = metrics.get(storeId) ?? emptyMetrics();
+  const ratingSummary = [
+    {
+      dimensionCode: "atmosphere",
+      dimensionLabel: "職場の雰囲気",
+      displayOrder: 10,
+      averageScore: row.avgAtmosphere,
+    },
+    {
+      dimensionCode: "training",
+      dimensionLabel: "教育・フォロー体制",
+      displayOrder: 20,
+      averageScore: row.avgTraining,
+    },
+    {
+      dimensionCode: "workload",
+      dimensionLabel: "業務のゆとり",
+      displayOrder: 30,
+      averageScore: row.avgWorkloadComfort,
+    },
+    {
+      dimensionCode: "flexibility",
+      dimensionLabel: "シフトの融通度",
+      displayOrder: 40,
+      averageScore: row.avgFlexibility,
+    },
+  ];
+  const metrics = applyReviewVisibility({
+    reviewCount: row.reviewCount,
+    averageRating: row.averageRating,
+    reviewExcerpt: excerpts.get(storeId) ?? null,
+  });
   return {
-    ...row,
+    id: row.id,
+    name: row.name,
+    postalCode: row.postalCode,
+    prefecture: row.prefecture,
+    city: row.city,
+    address: row.address,
+    ...metrics,
     categories: cats.get(storeId) ?? [],
-    ...m,
-    ratingSummary: m.reviewsPublic
+    ratingSummary: metrics.reviewsPublic
       ? ratingSummary
       : ratingSummary.map((summary) => ({ ...summary, averageScore: null })),
   };
@@ -263,43 +272,6 @@ async function ratingsFor(
       },
     ]);
   return map;
-}
-
-async function ratingSummaryFor(
-  db: Db,
-  storeId: string,
-): Promise<PublicRatingSummary[]> {
-  const dimensions = await db
-    .select({
-      id: ratingDimensions.id,
-      code: ratingDimensions.code,
-      label: ratingDimensions.label,
-      order: ratingDimensions.displayOrder,
-    })
-    .from(ratingDimensions)
-    .where(inArray(ratingDimensions.code, [...ratingCodes]))
-    .orderBy(asc(ratingDimensions.displayOrder));
-  const reviewRows = await db
-    .select({ id: reviews.id })
-    .from(reviews)
-    .where(and(eq(reviews.storeId, storeId), visibleReview()));
-  const ratings = await ratingsFor(
-    db,
-    reviewRows.map((row) => row.id),
-  );
-  return dimensions.map((dimension) => {
-    const scores = [...ratings.values()]
-      .flat()
-      .filter((rating) => rating.dimensionCode === dimension.code);
-    return {
-      dimensionCode: dimension.code,
-      dimensionLabel: dimension.label,
-      displayOrder: dimension.order,
-      averageScore: scores.length
-        ? scores.reduce((sum, value) => sum + value.score, 0) / scores.length
-        : null,
-    };
-  });
 }
 
 export async function listPublicReviewsByStoreId(

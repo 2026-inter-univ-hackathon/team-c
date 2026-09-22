@@ -3,6 +3,7 @@ import { loadEnvFile } from "node:process";
 import { eq, ne } from "drizzle-orm";
 import { createDbFromClient, createPostgresClient } from "./client";
 import * as schema from "./schema";
+import { syncStoreWeightedScoresWithDb } from "../server/services/store-weighted-scores";
 import {
   assertDevReviewPostingEnabled,
   DEV_REVIEW_USER_ID,
@@ -237,6 +238,9 @@ async function seed() {
       .onConflictDoNothing();
     await tx.insert(schema.reviews).values(reviews).onConflictDoNothing();
     await tx.insert(schema.reviewRatings).values(ratings).onConflictDoNothing();
+    for (const store of stores) {
+      await syncStoreWeightedScoresWithDb(tx, store.id!);
+    }
   });
 }
 try {
