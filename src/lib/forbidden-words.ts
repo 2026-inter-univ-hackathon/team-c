@@ -28,7 +28,7 @@ const FORBIDDEN_WORD_EXCLUSIONS: Partial<
 
 /** 判定前に全角/半角スペースを除去し、Unicode正規化（NFKC）を行う。 */
 function normalizeForMatch(text: string): string {
-  return text.normalize("NFKC").replace(/[\s　]/g, "");
+  return text.normalize("NFKC").replace(/[\s\u3000]/g, "");
 }
 
 /** 除外パターンに該当する部分を取り除いた上で、禁止語が残るかを判定する。 */
