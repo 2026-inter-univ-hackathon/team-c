@@ -133,4 +133,19 @@ describe("review submission boundary", () => {
   it("keeps calculation unrounded and recommendation separate", () => {
     expect(reviewScore(validInput().ratings)).toBe(3.75);
   });
+  it("rejects a summary containing a forbidden word", async () => {
+    const d = deps();
+    const result = await createReviewUseCase(
+      db,
+      {
+        ...validInput(),
+        summary:
+          "先輩は本当にバカで無能だと思う。もっと詳しく説明してほしかった。",
+      },
+      d,
+      env,
+    );
+    expect(result.ok).toBe(false);
+    expect(d.createPublishedReview).not.toHaveBeenCalled();
+  });
 });

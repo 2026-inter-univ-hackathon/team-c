@@ -5,6 +5,10 @@ import { z } from "zod";
 import { Button } from "../components/button";
 import { ReviewCard } from "../features/stores/review-card";
 import {
+  containsForbiddenWord,
+  FORBIDDEN_WORD_MESSAGE,
+} from "../lib/forbidden-words";
+import {
   GUIDELINE_VERSION,
   employmentStatuses,
   occupations,
@@ -222,12 +226,15 @@ function ReviewPage() {
         !draft.recommendation)
     )
       return ["4つの評価とおすすめ度を選んでください"];
-    if (
-      step === 3 &&
-      (Array.from(draft.summary.trim()).length < 30 ||
-        Array.from(draft.summary.trim()).length > 300)
-    )
-      return ["30〜300文字で入力してください"];
+    if (step === 3) {
+      const errors: string[] = [];
+      const length = Array.from(draft.summary.trim()).length;
+      if (length < 30 || length > 300)
+        errors.push("30〜300文字で入力してください");
+      if (containsForbiddenWord(draft.summary))
+        errors.push(FORBIDDEN_WORD_MESSAGE);
+      if (errors.length) return errors;
+    }
     if (step === 4 && !draft.agreed) return ["ガイドラインへの同意が必要です"];
     return [];
   }
@@ -486,6 +493,11 @@ function ReviewPage() {
                 <span className="block text-right text-xs text-stone-500">
                   {Array.from(draft.summary.trim()).length} / 30〜300文字
                 </span>
+                {containsForbiddenWord(draft.summary) && (
+                  <span className="mt-1 block text-sm text-red-800">
+                    {FORBIDDEN_WORD_MESSAGE}
+                  </span>
+                )}
               </label>
             )}
             {step === 4 && (
