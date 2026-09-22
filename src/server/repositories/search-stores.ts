@@ -16,10 +16,6 @@ import {
 import type { Db } from "../../db/client";
 import { categories, reviews, storeCategories, stores } from "../../db/schema";
 import { PAGE_SIZE, type StoreSearch } from "../../schemas/store-search";
-import {
-  MIN_PUBLIC_REVIEW_COUNT,
-  isReviewContentPublic,
-} from "../../lib/review-visibility";
 
 export const publicStoreCondition = () =>
   and(eq(stores.status, "ACTIVE"), isNull(stores.deletedAt));
@@ -33,19 +29,6 @@ export const publicReviewCondition = () =>
 export function literalPattern(value: string) {
   return `%${value.replace(/[\\%_]/g, "\\$&")}%`;
 }
-
-// Scores stay hidden until a store has enough reviews to protect reviewer
-// anonymity; only the count is exposed below the threshold.
-const reviewsPublicCondition = () =>
-  gte(stores.reviewCount, MIN_PUBLIC_REVIEW_COUNT);
-const publicOverallScore = () =>
-  sql<
-    number | null
-  >`case when ${reviewsPublicCondition()} then ${stores.overallScore} end`.mapWith(
-    Number,
-  );
-const publicBayesianScore = () =>
-  sql`case when ${reviewsPublicCondition()} then ${stores.bayesianScore} end`;
 
 export async function searchPublicStores(db: Db, input: StoreSearch) {
   const condition = and(
@@ -75,9 +58,7 @@ export async function searchPublicStores(db: Db, input: StoreSearch) {
             ),
         )
       : undefined,
-    input.minRating > 0
-      ? and(reviewsPublicCondition(), gte(stores.overallScore, input.minRating))
-      : undefined,
+    input.minRating > 0 ? gte(stores.overallScore, input.minRating) : undefined,
     input.ids
       ? input.ids.length
         ? inArray(stores.id, input.ids)
@@ -93,7 +74,7 @@ export async function searchPublicStores(db: Db, input: StoreSearch) {
   const page = Math.min(input.page, pageCount);
   const order =
     input.sort === "rating"
-      ? sql`${publicBayesianScore()} desc nulls last`
+      ? sql`${stores.bayesianScore} desc nulls last`
       : input.sort === "reviews"
         ? sql`${stores.reviewCount} desc`
         : asc(stores.name);
@@ -104,7 +85,7 @@ export async function searchPublicStores(db: Db, input: StoreSearch) {
       prefecture: stores.prefecture,
       city: stores.city,
       reviewCount: stores.reviewCount,
-      averageRating: publicOverallScore(),
+      averageRating: stores.overallScore,
     })
     .from(stores)
     .where(condition)
@@ -112,9 +93,6 @@ export async function searchPublicStores(db: Db, input: StoreSearch) {
     .limit(PAGE_SIZE)
     .offset((page - 1) * PAGE_SIZE);
   const ids = rows.map((row) => row.id);
-  const excerptIds = rows
-    .filter((row) => isReviewContentPublic(row.reviewCount ?? 0))
-    .map((row) => row.id);
   const [categoryRows, excerpts] = ids.length
     ? await Promise.all([
         db
@@ -133,32 +111,24 @@ export async function searchPublicStores(db: Db, input: StoreSearch) {
             ),
           )
           .orderBy(asc(categories.name)),
-        excerptIds.length
-          ? db
-              .selectDistinctOn([reviews.storeId], {
-                storeId: reviews.storeId,
-                summary: reviews.summary,
-              })
-              .from(reviews)
-              .where(
-                and(
-                  inArray(reviews.storeId, excerptIds),
-                  publicReviewCondition(),
-                ),
-              )
-              .orderBy(
-                asc(reviews.storeId),
-                desc(reviews.publishedAt),
-                desc(reviews.id),
-              )
-          : Promise.resolve([]),
+        db
+          .selectDistinctOn([reviews.storeId], {
+            storeId: reviews.storeId,
+            summary: reviews.summary,
+          })
+          .from(reviews)
+          .where(and(inArray(reviews.storeId, ids), publicReviewCondition()))
+          .orderBy(
+            asc(reviews.storeId),
+            desc(reviews.publishedAt),
+            desc(reviews.id),
+          ),
       ])
     : [[], []];
   return {
     stores: rows.map((row) => ({
       ...row,
       reviewCount: row.reviewCount ?? 0,
-      reviewsPublic: isReviewContentPublic(row.reviewCount ?? 0),
       categories: categoryRows
         .filter((category) => category.storeId === row.id)
         .map(({ id, code, name }) => ({ id, code, name })),

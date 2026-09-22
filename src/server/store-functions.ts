@@ -40,13 +40,12 @@ export const getStoreDetail = createServerFn({ method: "GET" })
     publicRead("detail", () =>
       withDb(async (db) => {
         const store = await getPublicStoreDetailUseCase(db, data);
-        // Below the anonymity threshold only the count is public, so there
-        // is nothing to paginate and no review bodies to load.
-        const pageCount = store?.reviewsPublic
-          ? Math.max(1, Math.ceil(store.reviewCount / 10))
-          : 1;
+        const pageCount = Math.max(
+          1,
+          Math.ceil((store?.reviewCount ?? 0) / 10),
+        );
         const page = Math.min(data.page, pageCount);
-        const reviews = store?.reviewsPublic
+        const reviews = store
           ? await listPublicStoreReviewsUseCase(db, {
               storeId: data.storeId,
               limit: 10,

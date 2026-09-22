@@ -5,19 +5,42 @@ import {
   reviewScore,
   type CreateReviewInput,
 } from "../../schemas/review-flow";
+import {
+  coarseLabels,
+  type PublicAuthorAttributes,
+} from "../../lib/review-visibility";
 
 type CardReview = Pick<
   CreateReviewInput,
-  | "employmentStatus"
-  | "occupation"
-  | "workDuration"
   | "atmosphereTags"
   | "staffTags"
   | "managerPresence"
   | "recommendation"
   | "ratings"
   | "summary"
-> & { publishedAt?: string };
+> & { author: PublicAuthorAttributes; publishedAt?: string };
+
+function AuthorLine({ author }: { author: PublicAuthorAttributes }) {
+  if (author.detail === "COARSE")
+    return (
+      <div>
+        <strong>
+          {coarseLabels.employmentStatus[author.employmentStatus]} /{" "}
+          {coarseLabels.occupation[author.occupation]}
+        </strong>
+        <p>属性は大まかに表示しています</p>
+      </div>
+    );
+  return (
+    <div>
+      <strong>{authorBadge(author)}</strong>
+      <p>
+        {labels.employmentStatus[author.employmentStatus]}（投稿時点） /
+        勤務期間 {labels.workDuration[author.workDuration]}
+      </p>
+    </div>
+  );
+}
 
 export function ReviewCard({
   review,
@@ -35,13 +58,7 @@ export function ReviewCard({
         <span className="author-icon" aria-hidden="true">
           ✦
         </span>
-        <div>
-          <strong>{authorBadge(review)}</strong>
-          <p>
-            {labels.employmentStatus[review.employmentStatus]}（投稿時点） /
-            勤務期間 {labels.workDuration[review.workDuration]}
-          </p>
-        </div>
+        <AuthorLine author={review.author} />
         <span className="small-muted">
           {review.publishedAt ?? "投稿日は投稿後に表示"}
         </span>

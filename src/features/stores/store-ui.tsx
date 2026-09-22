@@ -2,10 +2,6 @@ import { Link } from "@tanstack/react-router";
 import { Button } from "../../components/button";
 import { Icon } from "../../components/icon";
 import { useFavorites } from "./favorites";
-import {
-  MIN_PUBLIC_REVIEW_COUNT,
-  remainingReviewsForPublic,
-} from "../../lib/review-visibility";
 import cafe from "../../../img/cafe.jpg";
 import convenience from "../../../img/conv.jpg";
 import education from "../../../img/juku.jpg";
@@ -19,16 +15,8 @@ export type StoreCardData = {
   categories: { code: string; name: string }[];
   averageRating: number | null;
   reviewCount: number;
-  reviewsPublic: boolean;
   reviewExcerpt: string | null;
 };
-/** 口コミが閾値未満で非公開のときに表示する案内文 */
-export function hiddenReviewsMessage(reviewCount: number) {
-  const remaining = remainingReviewsForPublic(reviewCount);
-  return reviewCount === 0
-    ? `口コミが${MIN_PUBLIC_REVIEW_COUNT}件集まると、評価と内容が公開されます。`
-    : `投稿者を守るため、口コミが${MIN_PUBLIC_REVIEW_COUNT}件集まるまで評価と内容は非公開です（あと${remaining}件）。`;
-}
 export function categoryImage(code?: string) {
   return code === "cafe"
     ? cafe
@@ -59,11 +47,9 @@ export function FavoriteButton({ id, name }: { id: string; name: string }) {
 export function Rating({
   value,
   count,
-  hidden = false,
 }: {
   value: number | null;
   count?: number;
-  hidden?: boolean;
 }) {
   return (
     <div className="rating">
@@ -72,11 +58,7 @@ export function Rating({
       </span>
       <strong>{value === null ? "—" : value.toFixed(2)}</strong>
       <span className="rating-label">
-        {value !== null
-          ? "/ 5.00"
-          : hidden
-            ? "評価は非公開"
-            : "評価はまだありません"}
+        {value === null ? "評価はまだありません" : "/ 5.00"}
       </span>
       {count !== undefined && (
         <span className="review-count">
@@ -122,18 +104,12 @@ export function StoreCard({ store }: { store: StoreCardData }) {
           {[store.prefecture, store.city].filter(Boolean).join(" ") ||
             "所在地の登録はありません"}
         </p>
-        <Rating
-          value={store.averageRating}
-          count={store.reviewCount}
-          hidden={!store.reviewsPublic && store.reviewCount > 0}
-        />
+        <Rating value={store.averageRating} count={store.reviewCount} />
         <div className="review-excerpt">
-          <Icon name={store.reviewsPublic ? "chat" : "lock"} size={17} />
+          <Icon name="chat" size={17} />
           <p>
-            {store.reviewsPublic
-              ? (store.reviewExcerpt ??
-                "この職場の口コミは、まだ投稿されていません。")
-              : hiddenReviewsMessage(store.reviewCount)}
+            {store.reviewExcerpt ??
+              "この職場の口コミは、まだ投稿されていません。"}
           </p>
         </div>
         <Link

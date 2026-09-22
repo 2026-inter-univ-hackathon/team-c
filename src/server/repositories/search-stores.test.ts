@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { createDbFromClient } from "../../db/client";
 import { defaultSearch } from "../../schemas/store-search";
-import { MIN_PUBLIC_REVIEW_COUNT } from "../../lib/review-visibility";
 import {
   literalPattern,
   publicReviewCondition,
@@ -74,35 +73,8 @@ it("clamps out-of-range pages and applies a bounded SQL limit after filtering", 
   expect(result).toMatchObject({ page: 3, pageCount: 3, total: 25 });
   const [query, params] = unsafe.mock.calls[1];
   expect(query).toContain("desc nulls last");
-  expect(query).toMatch(
-    /case when "stores"\."review_count" >= \$\d+ then "stores"\."bayesian_score" end desc nulls last/,
-  );
+  expect(query).toContain('"stores"."bayesian_score" desc nulls last');
   expect(query).not.toContain("review_ratings");
   expect(query).toMatch(/limit \$\d+ offset \$\d+/);
   expect(params.slice(-2)).toEqual([12, 24]);
-});
-
-it("masks average ratings in SQL until a store reaches the review threshold", async () => {
-  const unsafe = vi
-    .fn<
-      (
-        query: string,
-        params: unknown[],
-      ) => { values: () => Promise<unknown[][]> }
-    >()
-    .mockReturnValue({ values: async () => [] })
-    .mockReturnValueOnce({ values: async () => [[0]] });
-  const db = createDbFromClient({
-    unsafe,
-    options: { parsers: {}, serializers: {} },
-  } as never);
-  await searchPublicStores(db, { ...defaultSearch, sort: "rating" });
-  const [query, params] = unsafe.mock.calls[1];
-  expect(query).toMatch(
-    /case when "stores"\."review_count" >= \$\d+ then "overall_score" end/,
-  );
-  expect(query).toMatch(
-    /case when "stores"\."review_count" >= \$\d+ then "stores"\."bayesian_score" end desc nulls last/,
-  );
-  expect(params).toContain(MIN_PUBLIC_REVIEW_COUNT);
 });

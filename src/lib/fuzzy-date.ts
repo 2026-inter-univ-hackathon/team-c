@@ -5,16 +5,28 @@ function roundDayToPeriod(day: number): "上旬" | "中旬" | "下旬" {
   return "下旬";
 }
 
-/** 投稿者特定を防ぐため、日付を「年月+上旬/中旬/下旬」に丸めて表示する。 */
-export function formatFuzzyDate(date: string | Date): string {
+function tokyoDateParts(date: string | Date) {
   const parts = new Intl.DateTimeFormat("ja-JP", {
     year: "numeric",
     month: "numeric",
     day: "numeric",
     timeZone: "Asia/Tokyo",
   }).formatToParts(new Date(date));
-  const year = parts.find((part) => part.type === "year")?.value;
-  const month = parts.find((part) => part.type === "month")?.value;
-  const day = Number(parts.find((part) => part.type === "day")?.value);
+  return {
+    year: parts.find((part) => part.type === "year")?.value,
+    month: parts.find((part) => part.type === "month")?.value,
+    day: Number(parts.find((part) => part.type === "day")?.value),
+  };
+}
+
+/** 投稿者特定を防ぐため、日付を「年月+上旬/中旬/下旬」に丸めて表示する。 */
+export function formatFuzzyDate(date: string | Date): string {
+  const { year, month, day } = tokyoDateParts(date);
   return `${year}年${month}月${roundDayToPeriod(day)}`;
+}
+
+/** 口コミが少ない職場向けに、日付を「年月」までに丸めて表示する。 */
+export function formatFuzzyMonth(date: string | Date): string {
+  const { year, month } = tokyoDateParts(date);
+  return `${year}年${month}月`;
 }

@@ -19,6 +19,7 @@ import {
   type CreateReviewInput,
 } from "../schemas/review-flow";
 import { withDb } from "../server/db";
+import { detailedAuthorAttributes } from "../lib/review-visibility";
 import { isDevReviewPostingEnabled } from "../server/dev-review-access";
 import { DuplicateReviewError } from "../server/errors";
 import {
@@ -494,7 +495,13 @@ function ReviewPage() {
                   ほかのユーザーや店舗に公開される内容を確認してください。属性や本文の組み合わせから身元が推測される可能性があります。
                 </p>
                 {readyForPreview.success && (
-                  <ReviewCard review={readyForPreview.data} preview />
+                  <ReviewCard
+                    review={{
+                      ...readyForPreview.data,
+                      author: detailedAuthorAttributes(readyForPreview.data),
+                    }}
+                    preview
+                  />
                 )}
                 <label className="flex gap-3 rounded-lg border border-orange-200 p-4 text-sm">
                   <input

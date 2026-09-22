@@ -7,7 +7,6 @@ import {
   EmptyState,
   ErrorState,
   FavoriteButton,
-  hiddenReviewsMessage,
   LoadingState,
   Rating,
 } from "../features/stores/store-ui";
@@ -16,6 +15,7 @@ import { ReviewCard } from "../features/stores/review-card";
 import { ratingCodes, type CreateReviewInput } from "../schemas/review-flow";
 import { Icon } from "../components/icon";
 import { Pagination } from "../components/pagination";
+import { coarseAttributesNotice } from "../lib/review-visibility";
 export const Route = createFileRoute("/stores/$storeId/")({
   validateSearch: (raw: Record<string, unknown>) => ({
     page: z.coerce.number().int().min(1).max(10000).catch(1).parse(raw.page),
@@ -67,11 +67,7 @@ function DetailPage() {
               .filter(Boolean)
               .join(" ") || "住所の登録はありません"}
           </p>
-          <Rating
-            value={store.averageRating}
-            count={store.reviewCount}
-            hidden={!store.reviewsPublic && store.reviewCount > 0}
-          />
+          <Rating value={store.averageRating} count={store.reviewCount} />
         </div>
         <FavoriteButton id={store.id} name={store.name} />
       </header>
@@ -153,9 +149,7 @@ function DetailPage() {
               </div>
             </div>
             <p className="data-note">
-              {store.reviewsPublic
-                ? "公開口コミを勤続期間と在籍状況で重み付けして集計しています。口コミがない項目は「—」で表示します。"
-                : hiddenReviewsMessage(store.reviewCount)}
+              公開口コミを勤続期間と在籍状況で重み付けして集計しています。口コミがない項目は「—」で表示します。
             </p>
           </section>
           <section id="reviews" className="reviews-section">
@@ -174,29 +168,18 @@ function DetailPage() {
                 </ButtonLink>
               </div>
             </div>
-            {!store.reviewsPublic ? (
-              <EmptyState
-                title={
-                  store.reviewCount
-                    ? "口コミは公開準備中です"
-                    : "口コミはまだありません"
-                }
-              >
-                <p>{hiddenReviewsMessage(store.reviewCount)}</p>
-                <p>あなたの経験を投稿すると、公開に一歩近づきます。</p>
-                <Link to="/stores" search={defaultSearch} className="text-link">
-                  職場一覧へ
-                  <Icon name="arrow" />
-                </Link>
-              </EmptyState>
-            ) : reviews.length ? (
+            {!store.detailedAttributes && store.reviewCount > 0 && (
+              <p className="data-note attribute-notice">
+                <Icon name="shield" size={14} />
+                {coarseAttributesNotice(store.reviewCount)}
+              </p>
+            )}
+            {reviews.length ? (
               reviews.map((review) => (
                 <ReviewCard
                   key={review.id}
                   review={{
-                    employmentStatus: review.employmentStatus,
-                    occupation: review.occupation,
-                    workDuration: review.workDuration,
+                    author: review.author,
                     atmosphereTags: review.atmosphereTags,
                     staffTags: review.staffTags,
                     managerPresence: review.managerPresence,

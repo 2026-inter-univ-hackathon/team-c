@@ -22,7 +22,11 @@ import {
   ratingCodes,
   type CreateReviewInput,
 } from "../../schemas/review-flow";
-import { isReviewContentPublic } from "../../lib/review-visibility";
+import { formatFuzzyMonth } from "../../lib/fuzzy-date";
+import {
+  hasDetailedAttributes,
+  publicAuthorAttributes,
+} from "../../lib/review-visibility";
 import type {
   NormalizedPublicListOptions,
   PublicCategory,
@@ -84,28 +88,6 @@ async function categoriesFor(
   return map;
 }
 
-export type StoreMetrics = {
-  reviewCount: number;
-  reviewsPublic: boolean;
-  averageRating: number | null;
-  reviewExcerpt: string | null;
-};
-
-/**
- * 口コミ件数が閾値未満の職場では、評価と本文の抜粋を伏せて件数だけを残す。
- */
-export function applyReviewVisibility(
-  metrics: Omit<StoreMetrics, "reviewsPublic">,
-): StoreMetrics {
-  const reviewsPublic = isReviewContentPublic(metrics.reviewCount);
-  return {
-    reviewCount: metrics.reviewCount,
-    reviewsPublic,
-    averageRating: reviewsPublic ? metrics.averageRating : null,
-    reviewExcerpt: reviewsPublic ? metrics.reviewExcerpt : null,
-  };
-}
-
 async function excerptsFor(db: Db, ids: string[]) {
   const map = new Map<string, string>();
   if (!ids.length) return map;
@@ -148,12 +130,9 @@ export async function listPublicStores(
   ]);
   return rows.map((row) => ({
     ...row,
+    detailedAttributes: hasDetailedAttributes(row.reviewCount),
     categories: cats.get(row.id) ?? [],
-    ...applyReviewVisibility({
-      reviewCount: row.reviewCount,
-      averageRating: row.averageRating,
-      reviewExcerpt: excerpts.get(row.id) ?? null,
-    }),
+    reviewExcerpt: excerpts.get(row.id) ?? null,
   }));
 }
 
@@ -216,11 +195,6 @@ export async function getPublicStoreById(
       averageScore: row.avgFlexibility,
     },
   ];
-  const metrics = applyReviewVisibility({
-    reviewCount: row.reviewCount,
-    averageRating: row.averageRating,
-    reviewExcerpt: excerpts.get(storeId) ?? null,
-  });
   return {
     id: row.id,
     name: row.name,
@@ -228,11 +202,12 @@ export async function getPublicStoreById(
     prefecture: row.prefecture,
     city: row.city,
     address: row.address,
-    ...metrics,
+    reviewCount: row.reviewCount,
+    detailedAttributes: hasDetailedAttributes(row.reviewCount),
+    averageRating: row.averageRating,
     categories: cats.get(storeId) ?? [],
-    ratingSummary: metrics.reviewsPublic
-      ? ratingSummary
-      : ratingSummary.map((summary) => ({ ...summary, averageScore: null })),
+    reviewExcerpt: excerpts.get(storeId) ?? null,
+    ratingSummary,
   };
 }
 
@@ -280,13 +255,14 @@ export async function listPublicReviewsByStoreId(
   options?: PublicListOptions,
 ): Promise<PublicReview[]> {
   const { limit, offset } = normalizePublicListOptions(options);
-  // Server-side guard: never return review bodies for a store below the
-  // anonymity threshold, whatever the caller asked for.
+  // The visible-review count decides how precisely author attributes are
+  // exposed. It is computed here so callers cannot bypass the generalization.
   const [visible] = await db
     .select({ total: count() })
     .from(reviews)
     .where(and(eq(reviews.storeId, storeId), visibleReview()));
-  if (!isReviewContentPublic(visible?.total ?? 0)) return [];
+  const visibleCount = visible?.total ?? 0;
+  const detailed = hasDetailedAttributes(visibleCount);
   const rows = await db
     .select({
       id: reviews.id,
@@ -328,15 +304,22 @@ export async function listPublicReviewsByStoreId(
     return {
       id: row.id,
       summary: row.summary,
-      employmentStatus:
-        row.employmentStatus as PublicReview["employmentStatus"],
-      occupation: row.occupation as PublicReview["occupation"],
-      workDuration: row.workDuration as PublicReview["workDuration"],
+      author: publicAuthorAttributes(
+        {
+          employmentStatus:
+            row.employmentStatus as CreateReviewInput["employmentStatus"],
+          occupation: row.occupation as CreateReviewInput["occupation"],
+          workDuration: row.workDuration as CreateReviewInput["workDuration"],
+        },
+        visibleCount,
+      ),
       atmosphereTags: row.atmosphereTags as PublicReview["atmosphereTags"],
       staffTags: row.staffTags as PublicReview["staffTags"],
       managerPresence: row.managerPresence as PublicReview["managerPresence"],
       recommendation: row.recommendation as PublicReview["recommendation"],
-      publishedAt: fuzzyPublishedAt(row.publishedAt!),
+      publishedAt: detailed
+        ? fuzzyPublishedAt(row.publishedAt!)
+        : formatFuzzyMonth(row.publishedAt!),
       ratings: values.sort((a, b) => a.displayOrder - b.displayOrder),
       overallScore:
         values.length === 4

@@ -1,4 +1,5 @@
 import type { CreateReviewInput } from "../../schemas/review-flow";
+import type { PublicAuthorAttributes } from "../../lib/review-visibility";
 
 export type EmploymentStatus = CreateReviewInput["employmentStatus"];
 export type PublicCategory = { id: string; code: string; name: string };
@@ -15,8 +16,8 @@ export type PublicStoreSummary = {
   city: string | null;
   categories: PublicCategory[];
   reviewCount: number;
-  /** 口コミ件数が閾値に達し、本文・評価を公開してよいか */
-  reviewsPublic: boolean;
+  /** 口コミ件数が閾値に達し、投稿者属性を詳細に表示してよいか */
+  detailedAttributes: boolean;
   averageRating: number | null;
   reviewExcerpt: string | null;
 };
@@ -34,9 +35,7 @@ export type PublicReviewRating = {
 export type PublicReview = {
   id: string;
   summary: string;
-  employmentStatus: CreateReviewInput["employmentStatus"];
-  occupation: CreateReviewInput["occupation"];
-  workDuration: CreateReviewInput["workDuration"];
+  author: PublicAuthorAttributes;
   atmosphereTags: CreateReviewInput["atmosphereTags"];
   staffTags: CreateReviewInput["staffTags"];
   managerPresence: CreateReviewInput["managerPresence"];
