@@ -3,7 +3,15 @@ export function Icon({
   size = 20,
 }: {
   name:
-    "search" | "heart" | "arrow" | "pin" | "star" | "chat" | "shield" | "alert";
+    | "search"
+    | "heart"
+    | "arrow"
+    | "pin"
+    | "star"
+    | "chat"
+    | "shield"
+    | "alert"
+    | "lock";
   size?: number;
 }) {
   const paths = {
@@ -37,6 +45,13 @@ export function Icon({
         <path d="M12 3.5 2.5 20h19L12 3.5Z" />
         <path d="M12 10v4" />
         <path d="M12 17.2v.1" />
+      </>
+    ),
+    lock: (
+      <>
+        <rect x="5" y="10.5" width="14" height="10" rx="2" />
+        <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
+        <path d="M12 14.5v2.5" />
       </>
     ),
   };

@@ -186,7 +186,10 @@ async function seed() {
         status: "ACTIVE",
       });
       categories.push({ storeId, categoryId: id("50000000", kind.category) });
-      for (let j = 0; j < (i < 10 ? 1 : 0); j++) {
+      // 口コミ本文・評価は5件以上集まった職場だけ公開されるため、
+      // 公開済み（5件）と公開前（1〜4件）の両方の状態をデモに用意する。
+      const reviewCountForStore = i < 3 ? 5 : i < 10 ? (i % 4) + 1 : 0;
+      for (let j = 0; j < reviewCountForStore; j++) {
         const reviewId = id("90000000", 1001 + i * 5 + j);
         const score = ((i + j) % 5) + 1;
         const date = new Date(
@@ -205,7 +208,7 @@ async function seed() {
           staffTags: [staffTags[(i + j) % staffTags.length]!],
           managerPresence: managerPresences[(i + j) % managerPresences.length],
           recommendation: recommendations[(i + j) % recommendations.length],
-          summary: `【架空の口コミ】${stories[i]!}`,
+          summary: `【架空の口コミ】${stories[(i + j) % stories.length]!}`,
           guidelineVersion: GUIDELINE_VERSION,
           guidelineAgreedAt: date,
           status: "PUBLISHED",

@@ -25,6 +25,10 @@ import {
   stores,
 } from "../../db/schema";
 import { PAGE_SIZE, type StoreSearch } from "../../schemas/store-search";
+import {
+  MIN_PUBLIC_REVIEW_COUNT,
+  isReviewContentPublic,
+} from "../../lib/review-visibility";
 
 export const publicStoreCondition = () =>
   and(eq(stores.status, "ACTIVE"), isNull(stores.deletedAt));
@@ -44,7 +48,11 @@ export async function searchPublicStores(db: Db, input: StoreSearch) {
     .select({
       storeId: reviews.storeId,
       reviewCount: countDistinct(reviews.id).as("review_count"),
-      averageRating: sql<number | null>`${avg(reviewRatings.score)}`
+      // Ratings stay hidden until a store has enough reviews to protect
+      // reviewer anonymity; only the count is exposed below the threshold.
+      averageRating: sql<
+        number | null
+      >`case when ${countDistinct(reviews.id)} >= ${MIN_PUBLIC_REVIEW_COUNT} then ${avg(reviewRatings.score)} end`
         .mapWith(Number)
         .as("average_rating"),
     })
@@ -134,6 +142,9 @@ export async function searchPublicStores(db: Db, input: StoreSearch) {
     .limit(PAGE_SIZE)
     .offset((page - 1) * PAGE_SIZE);
   const ids = rows.map((row) => row.id);
+  const excerptIds = rows
+    .filter((row) => isReviewContentPublic(row.reviewCount ?? 0))
+    .map((row) => row.id);
   const [categoryRows, excerpts] = ids.length
     ? await Promise.all([
         db
@@ -152,24 +163,32 @@ export async function searchPublicStores(db: Db, input: StoreSearch) {
             ),
           )
           .orderBy(asc(categories.name)),
-        db
-          .selectDistinctOn([reviews.storeId], {
-            storeId: reviews.storeId,
-            summary: reviews.summary,
-          })
-          .from(reviews)
-          .where(and(inArray(reviews.storeId, ids), publicReviewCondition()))
-          .orderBy(
-            asc(reviews.storeId),
-            desc(reviews.publishedAt),
-            desc(reviews.id),
-          ),
+        excerptIds.length
+          ? db
+              .selectDistinctOn([reviews.storeId], {
+                storeId: reviews.storeId,
+                summary: reviews.summary,
+              })
+              .from(reviews)
+              .where(
+                and(
+                  inArray(reviews.storeId, excerptIds),
+                  publicReviewCondition(),
+                ),
+              )
+              .orderBy(
+                asc(reviews.storeId),
+                desc(reviews.publishedAt),
+                desc(reviews.id),
+              )
+          : Promise.resolve([]),
       ])
     : [[], []];
   return {
     stores: rows.map((row) => ({
       ...row,
       reviewCount: row.reviewCount ?? 0,
+      reviewsPublic: isReviewContentPublic(row.reviewCount ?? 0),
       categories: categoryRows
         .filter((category) => category.storeId === row.id)
         .map(({ id, code, name }) => ({ id, code, name })),

@@ -1,4 +1,13 @@
-import { and, asc, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+} from "drizzle-orm";
 import type { Db } from "../../db/client";
 import {
   categories,
@@ -13,6 +22,7 @@ import {
   ratingCodes,
   type CreateReviewInput,
 } from "../../schemas/review-flow";
+import { isReviewContentPublic } from "../../lib/review-visibility";
 import type {
   NormalizedPublicListOptions,
   PublicCategory,
@@ -75,15 +85,37 @@ async function categoriesFor(
   return map;
 }
 
+export type StoreMetrics = {
+  reviewCount: number;
+  reviewsPublic: boolean;
+  averageRating: number | null;
+  reviewExcerpt: string | null;
+};
+
+/**
+ * 口コミ件数が閾値未満の職場では、評価と本文の抜粋を伏せて件数だけを残す。
+ */
+export function applyReviewVisibility(
+  metrics: Omit<StoreMetrics, "reviewsPublic">,
+): StoreMetrics {
+  const reviewsPublic = isReviewContentPublic(metrics.reviewCount);
+  return {
+    reviewCount: metrics.reviewCount,
+    reviewsPublic,
+    averageRating: reviewsPublic ? metrics.averageRating : null,
+    reviewExcerpt: reviewsPublic ? metrics.reviewExcerpt : null,
+  };
+}
+
+const emptyMetrics = (): StoreMetrics => ({
+  reviewCount: 0,
+  reviewsPublic: false,
+  averageRating: null,
+  reviewExcerpt: null,
+});
+
 async function metricsFor(db: Db, ids: string[]) {
-  const map = new Map<
-    string,
-    {
-      reviewCount: number;
-      averageRating: number | null;
-      reviewExcerpt: string | null;
-    }
-  >();
+  const map = new Map<string, StoreMetrics>();
   if (!ids.length) return map;
   const rows = await db
     .select({
@@ -99,8 +131,9 @@ async function metricsFor(db: Db, ids: string[]) {
     db,
     rows.map((row) => row.id),
   );
+  const raw = new Map<string, Omit<StoreMetrics, "reviewsPublic">>();
   for (const row of rows) {
-    const old = map.get(row.storeId) ?? {
+    const old = raw.get(row.storeId) ?? {
       reviewCount: 0,
       averageRating: null,
       reviewExcerpt: null,
@@ -112,7 +145,7 @@ async function metricsFor(db: Db, ids: string[]) {
         : null;
     const scoreTotal =
       (old.averageRating ?? 0) * old.reviewCount + (score ?? 0);
-    map.set(row.storeId, {
+    raw.set(row.storeId, {
       reviewCount: old.reviewCount + 1,
       averageRating:
         score === null ? old.averageRating : scoreTotal / (old.reviewCount + 1),
@@ -121,6 +154,8 @@ async function metricsFor(db: Db, ids: string[]) {
         row.summary.trim().replace(/\s+/g, " ").slice(0, 96),
     });
   }
+  for (const [storeId, metrics] of raw)
+    map.set(storeId, applyReviewVisibility(metrics));
   return map;
 }
 
@@ -149,9 +184,7 @@ export async function listPublicStores(
   return rows.map((row) => ({
     ...row,
     categories: cats.get(row.id) ?? [],
-    reviewCount: metrics.get(row.id)?.reviewCount ?? 0,
-    averageRating: metrics.get(row.id)?.averageRating ?? null,
-    reviewExcerpt: metrics.get(row.id)?.reviewExcerpt ?? null,
+    ...(metrics.get(row.id) ?? emptyMetrics()),
   }));
 }
 
@@ -183,14 +216,14 @@ export async function getPublicStoreById(
     metricsFor(db, [storeId]),
     ratingSummaryFor(db, storeId),
   ]);
-  const m = metrics.get(storeId);
+  const m = metrics.get(storeId) ?? emptyMetrics();
   return {
     ...row,
     categories: cats.get(storeId) ?? [],
-    reviewCount: m?.reviewCount ?? 0,
-    averageRating: m?.averageRating ?? null,
-    reviewExcerpt: m?.reviewExcerpt ?? null,
-    ratingSummary,
+    ...m,
+    ratingSummary: m.reviewsPublic
+      ? ratingSummary
+      : ratingSummary.map((summary) => ({ ...summary, averageScore: null })),
   };
 }
 
@@ -275,6 +308,13 @@ export async function listPublicReviewsByStoreId(
   options?: PublicListOptions,
 ): Promise<PublicReview[]> {
   const { limit, offset } = normalizePublicListOptions(options);
+  // Server-side guard: never return review bodies for a store below the
+  // anonymity threshold, whatever the caller asked for.
+  const [visible] = await db
+    .select({ total: count() })
+    .from(reviews)
+    .where(and(eq(reviews.storeId, storeId), visibleReview()));
+  if (!isReviewContentPublic(visible?.total ?? 0)) return [];
   const rows = await db
     .select({
       id: reviews.id,

@@ -7,6 +7,7 @@ import {
   EmptyState,
   ErrorState,
   FavoriteButton,
+  hiddenReviewsMessage,
   LoadingState,
   Rating,
 } from "../features/stores/store-ui";
@@ -66,7 +67,11 @@ function DetailPage() {
               .filter(Boolean)
               .join(" ") || "住所の登録はありません"}
           </p>
-          <Rating value={store.averageRating} count={store.reviewCount} />
+          <Rating
+            value={store.averageRating}
+            count={store.reviewCount}
+            hidden={!store.reviewsPublic && store.reviewCount > 0}
+          />
         </div>
         <FavoriteButton id={store.id} name={store.name} />
       </header>
@@ -148,7 +153,9 @@ function DetailPage() {
               </div>
             </div>
             <p className="data-note">
-              公開口コミの評価点を単純平均しています。口コミがない項目は「—」で表示します。
+              {store.reviewsPublic
+                ? "公開口コミの評価点を単純平均しています。口コミがない項目は「—」で表示します。"
+                : hiddenReviewsMessage(store.reviewCount)}
             </p>
           </section>
           <section id="reviews" className="reviews-section">
@@ -167,7 +174,22 @@ function DetailPage() {
                 </ButtonLink>
               </div>
             </div>
-            {reviews.length ? (
+            {!store.reviewsPublic ? (
+              <EmptyState
+                title={
+                  store.reviewCount
+                    ? "口コミは公開準備中です"
+                    : "口コミはまだありません"
+                }
+              >
+                <p>{hiddenReviewsMessage(store.reviewCount)}</p>
+                <p>あなたの経験を投稿すると、公開に一歩近づきます。</p>
+                <Link to="/stores" search={defaultSearch} className="text-link">
+                  職場一覧へ
+                  <Icon name="arrow" />
+                </Link>
+              </EmptyState>
+            ) : reviews.length ? (
               reviews.map((review) => (
                 <ReviewCard
                   key={review.id}

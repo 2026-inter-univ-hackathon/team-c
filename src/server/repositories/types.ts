@@ -15,6 +15,8 @@ export type PublicStoreSummary = {
   city: string | null;
   categories: PublicCategory[];
   reviewCount: number;
+  /** 口コミ件数が閾値に達し、本文・評価を公開してよいか */
+  reviewsPublic: boolean;
   averageRating: number | null;
   reviewExcerpt: string | null;
 };
