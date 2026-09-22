@@ -1,12 +1,12 @@
 import {
   and,
   asc,
-  count,
   desc,
   eq,
   inArray,
   isNotNull,
   isNull,
+  sql,
 } from "drizzle-orm";
 import type { Db } from "../../db/client";
 import {
@@ -255,14 +255,9 @@ export async function listPublicReviewsByStoreId(
   options?: PublicListOptions,
 ): Promise<PublicReview[]> {
   const { limit, offset } = normalizePublicListOptions(options);
-  // The visible-review count decides how precisely author attributes are
-  // exposed. It is computed here so callers cannot bypass the generalization.
-  const [visible] = await db
-    .select({ total: count() })
-    .from(reviews)
-    .where(and(eq(reviews.storeId, storeId), visibleReview()));
-  const visibleCount = visible?.total ?? 0;
-  const detailed = hasDetailedAttributes(visibleCount);
+  // Count and rows must share one database snapshot. Otherwise a review could
+  // be hidden between separate queries and expose detailed attributes below
+  // the anonymity threshold.
   const rows = await db
     .select({
       id: reviews.id,
@@ -275,6 +270,9 @@ export async function listPublicReviewsByStoreId(
       managerPresence: reviews.managerPresence,
       recommendation: reviews.recommendation,
       publishedAt: reviews.publishedAt,
+      visibleCount: sql<number>`count(*) over ()`
+        .mapWith(Number)
+        .as("visible_count"),
     })
     .from(reviews)
     .innerJoin(stores, eq(stores.id, reviews.storeId))
@@ -294,6 +292,7 @@ export async function listPublicReviewsByStoreId(
     rows.map((row) => row.id),
   );
   return rows.map((row) => {
+    const detailed = hasDetailedAttributes(row.visibleCount);
     const values = ratings.get(row.id) ?? [];
     const byCode = Object.fromEntries(
       values.map((value) => [value.dimensionCode, value.score]),
@@ -311,7 +310,7 @@ export async function listPublicReviewsByStoreId(
           occupation: row.occupation as CreateReviewInput["occupation"],
           workDuration: row.workDuration as CreateReviewInput["workDuration"],
         },
-        visibleCount,
+        row.visibleCount,
       ),
       atmosphereTags: row.atmosphereTags as PublicReview["atmosphereTags"],
       staffTags: row.staffTags as PublicReview["staffTags"],
