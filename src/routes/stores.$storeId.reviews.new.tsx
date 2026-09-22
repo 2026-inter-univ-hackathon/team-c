@@ -216,7 +216,11 @@ function ConsentModal({ onAgree }: { onAgree: () => void }) {
         </ul>
         <p className="mt-4 text-sm text-stone-600">
           詳細な内容については、必ず{" "}
-          <Link to="/terms" target="_blank" className="text-orange-700 underline">
+          <Link
+            to="/terms"
+            target="_blank"
+            className="text-orange-700 underline"
+          >
             利用規約全文
           </Link>{" "}
           および{" "}
