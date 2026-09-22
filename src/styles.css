@@ -1036,6 +1036,17 @@ h3 {
   line-height: 1.9;
   margin-top: 20px;
 }
+.attribute-notice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 14px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #fff7f0;
+  border: 1px solid var(--line);
+  font-size: 11px;
+}
 .active-filters {
   display: flex;
   flex-wrap: wrap;

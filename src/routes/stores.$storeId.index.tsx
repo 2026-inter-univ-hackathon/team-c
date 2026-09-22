@@ -15,6 +15,7 @@ import { ReviewCard } from "../features/stores/review-card";
 import { ratingCodes, type CreateReviewInput } from "../schemas/review-flow";
 import { Icon } from "../components/icon";
 import { Pagination } from "../components/pagination";
+import { coarseAttributesNotice } from "../lib/review-visibility";
 export const Route = createFileRoute("/stores/$storeId/")({
   validateSearch: (raw: Record<string, unknown>) => ({
     page: z.coerce.number().int().min(1).max(10000).catch(1).parse(raw.page),
@@ -167,14 +168,18 @@ function DetailPage() {
                 </ButtonLink>
               </div>
             </div>
+            {!store.detailedAttributes && store.reviewCount > 0 && (
+              <p className="data-note attribute-notice">
+                <Icon name="shield" size={14} />
+                {coarseAttributesNotice(store.reviewCount)}
+              </p>
+            )}
             {reviews.length ? (
               reviews.map((review) => (
                 <ReviewCard
                   key={review.id}
                   review={{
-                    employmentStatus: review.employmentStatus,
-                    occupation: review.occupation,
-                    workDuration: review.workDuration,
+                    author: review.author,
                     atmosphereTags: review.atmosphereTags,
                     staffTags: review.staffTags,
                     managerPresence: review.managerPresence,

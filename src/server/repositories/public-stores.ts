@@ -1,4 +1,13 @@
-import { and, asc, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+} from "drizzle-orm";
 import type { Db } from "../../db/client";
 import {
   categories,
@@ -13,6 +22,11 @@ import {
   ratingCodes,
   type CreateReviewInput,
 } from "../../schemas/review-flow";
+import { formatFuzzyMonth } from "../../lib/fuzzy-date";
+import {
+  hasDetailedAttributes,
+  publicAuthorAttributes,
+} from "../../lib/review-visibility";
 import type {
   NormalizedPublicListOptions,
   PublicCategory,
@@ -116,6 +130,7 @@ export async function listPublicStores(
   ]);
   return rows.map((row) => ({
     ...row,
+    detailedAttributes: hasDetailedAttributes(row.reviewCount),
     categories: cats.get(row.id) ?? [],
     reviewExcerpt: excerpts.get(row.id) ?? null,
   }));
@@ -188,6 +203,7 @@ export async function getPublicStoreById(
     city: row.city,
     address: row.address,
     reviewCount: row.reviewCount,
+    detailedAttributes: hasDetailedAttributes(row.reviewCount),
     averageRating: row.averageRating,
     categories: cats.get(storeId) ?? [],
     reviewExcerpt: excerpts.get(storeId) ?? null,
@@ -239,6 +255,14 @@ export async function listPublicReviewsByStoreId(
   options?: PublicListOptions,
 ): Promise<PublicReview[]> {
   const { limit, offset } = normalizePublicListOptions(options);
+  // The visible-review count decides how precisely author attributes are
+  // exposed. It is computed here so callers cannot bypass the generalization.
+  const [visible] = await db
+    .select({ total: count() })
+    .from(reviews)
+    .where(and(eq(reviews.storeId, storeId), visibleReview()));
+  const visibleCount = visible?.total ?? 0;
+  const detailed = hasDetailedAttributes(visibleCount);
   const rows = await db
     .select({
       id: reviews.id,
@@ -280,15 +304,22 @@ export async function listPublicReviewsByStoreId(
     return {
       id: row.id,
       summary: row.summary,
-      employmentStatus:
-        row.employmentStatus as PublicReview["employmentStatus"],
-      occupation: row.occupation as PublicReview["occupation"],
-      workDuration: row.workDuration as PublicReview["workDuration"],
+      author: publicAuthorAttributes(
+        {
+          employmentStatus:
+            row.employmentStatus as CreateReviewInput["employmentStatus"],
+          occupation: row.occupation as CreateReviewInput["occupation"],
+          workDuration: row.workDuration as CreateReviewInput["workDuration"],
+        },
+        visibleCount,
+      ),
       atmosphereTags: row.atmosphereTags as PublicReview["atmosphereTags"],
       staffTags: row.staffTags as PublicReview["staffTags"],
       managerPresence: row.managerPresence as PublicReview["managerPresence"],
       recommendation: row.recommendation as PublicReview["recommendation"],
-      publishedAt: fuzzyPublishedAt(row.publishedAt!),
+      publishedAt: detailed
+        ? fuzzyPublishedAt(row.publishedAt!)
+        : formatFuzzyMonth(row.publishedAt!),
       ratings: values.sort((a, b) => a.displayOrder - b.displayOrder),
       overallScore:
         values.length === 4

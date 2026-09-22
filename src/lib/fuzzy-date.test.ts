@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fuzzyPublishedAt } from "../schemas/review-flow";
-import { formatFuzzyDate } from "./fuzzy-date";
+import { formatFuzzyDate, formatFuzzyMonth } from "./fuzzy-date";
 
 describe("public review dates", () => {
   it.each([
@@ -14,5 +14,13 @@ describe("public review dates", () => {
   ])("rounds %s at the Tokyo boundary", (input, expected) => {
     expect(formatFuzzyDate(input)).toBe(expected);
     expect(fuzzyPublishedAt(new Date(input))).toBe(expected);
+  });
+
+  it.each([
+    ["2026-04-10T14:59:59.999Z", "2026年4月"],
+    ["2026-04-30T15:00:00.000Z", "2026年5月"],
+    ["2026-12-31T15:00:00.000Z", "2027年1月"],
+  ])("rounds %s to the month for coarse display", (input, expected) => {
+    expect(formatFuzzyMonth(input)).toBe(expected);
   });
 });
