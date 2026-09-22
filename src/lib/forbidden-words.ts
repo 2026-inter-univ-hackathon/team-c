@@ -51,9 +51,7 @@ function matchesForbiddenWord(
 /** 投稿文に禁止ワードが含まれているかを判定する。 */
 export function containsForbiddenWord(text: string): boolean {
   const normalized = normalizeForMatch(text);
-  return FORBIDDEN_WORDS.some((word) =>
-    matchesForbiddenWord(normalized, word),
-  );
+  return FORBIDDEN_WORDS.some((word) => matchesForbiddenWord(normalized, word));
 }
 
 export const FORBIDDEN_WORD_MESSAGE =

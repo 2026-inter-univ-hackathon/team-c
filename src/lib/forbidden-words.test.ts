@@ -22,7 +22,10 @@ describe("containsForbiddenWord", () => {
     ).toBe(false);
   });
 
-  it.each(["忙しい時間帯ばかりでした", "バカンスに行くほど休みが取りやすいです"])(
+  it.each([
+    "忙しい時間帯ばかりでした",
+    "バカンスに行くほど休みが取りやすいです",
+  ])(
     "does not flag benign compound words that contain a short forbidden word as a substring: %s",
     (text) => {
       expect(containsForbiddenWord(text)).toBe(false);
@@ -43,8 +46,6 @@ describe("containsForbiddenWord", () => {
 
   it("flags a forbidden word written with combining voiced sound marks", () => {
     // "ハ" (U+30CF) + combining voiced sound mark (U+3099) + "カ" normalizes to "バカ".
-    expect(containsForbiddenWord("バカって言われた")).toBe(
-      true,
-    );
+    expect(containsForbiddenWord("バカって言われた")).toBe(true);
   });
 });
