@@ -1,10 +1,13 @@
+import { useState } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { Icon } from "../components/icon";
 export const Route = createFileRoute("/guidelines")({
   head: () => ({ meta: [{ title: "ガイドライン | バイトのホンネ" }] }),
   component: GuidelinesPage,
 });
+type AudienceTab = "general" | "business";
 function GuidelinesPage() {
+  const [activeTab, setActiveTab] = useState<AudienceTab>("general");
   return (
     <main id="main" className="container page-section">
       <div className="breadcrumbs">
@@ -16,82 +19,189 @@ function GuidelinesPage() {
       <p className="page-description">
         安心して投稿・閲覧いただけるよう、匿名性の守り方と口コミ投稿のルールをまとめています。
       </p>
-      <section className="guideline-block">
-        <h2>
-          <Icon name="shield" size={20} />
-          投稿の匿名性とプライバシー保護について
-        </h2>
-        <p>
-          当アプリでは、投稿者が特定されたり、職場等から報復されることを防ぐため、厳重な匿名システムを採用しております。
-        </p>
-        <dl className="guideline-list">
-          <div>
-            <dt>データ開示の制限</dt>
-            <dd>
-              口コミが一定件数（５件）に満たない店舗のデータは、企業側に詳細を開示しません。
-            </dd>
-          </div>
-          <div>
-            <dt>投稿日や勤務期間の曖昧化</dt>
-            <dd>
-              投稿日時や勤務期間は「○年○月上旬」のように丸めて表示し、シフトや勤務時期からの特定を防ぎます。
-            </dd>
-          </div>
-          <div>
-            <dt>要約データとしての提供</dt>
-            <dd>
-              企業にはテキストの生データをそのまま渡すのではなく、統計データやAIによる「強み・課題の要約レポート」に変換して提供することで、個人が特定されるリスクを大幅に排除しています。
-            </dd>
-          </div>
-        </dl>
-      </section>
-      <section className="guideline-block">
-        <h2>
-          <Icon name="alert" size={20} />
-          口コミ投稿ガイドライン（禁止事項）
-        </h2>
-        <p>
-          すべての方が安心して情報を活用できるよう、以下の表現を含む投稿はシステムによる自動伏字化フィルターの対象となる他、運営の裁量により予告なく非表示・削除する場合（悪質なアカウントは投稿停止・利用禁止）があります。
-        </p>
-        <dl className="guideline-list">
-          <div>
-            <dt>実名・個人を特定できる情報の記載</dt>
-            <dd>
-              氏名、あだ名など個人を特定できる情報の記載はお控えください。
-            </dd>
-          </div>
-          <div>
-            <dt>噂話や憶測</dt>
-            <dd>
-              他者から聞いた話や噂話ではなく、ご自身が働いた経験に基づく口コミを投稿してください。また、大げさな決めつけや断定するような表現は誤解を生む恐れがありますのでご遠慮ください。
-            </dd>
-          </div>
-          <div>
-            <dt>個人の人格攻撃・誹謗中傷</dt>
-            <dd>
-              事実に基づかない悪意のある非難や、人格を否定するような表現は禁止しております。
-              <span className="guideline-example">
-                NG例：「バカ」「アホ」「無能」など
-              </span>
-            </dd>
-          </div>
-          <div>
-            <dt>差別的な表現</dt>
-            <dd>
-              性別、年齢、国籍、出身、人種・民族、障害の有無、宗教、外見などの属性を理由に、人を一方的に評価・攻撃するような表現はご遠慮ください。
-              <span className="guideline-example">
-                NG例：「女のくせに」「外国人だから」など
-              </span>
-            </dd>
-          </div>
-          <div>
-            <dt>違反行為の告発・社外秘情報の漏洩</dt>
-            <dd>
-              当アプリは事実確認が取れない犯罪行為の告発や企業の内部告発をする場ではございません。法律違反等については、当アプリではなく然るべき行政機関へご相談ください。また、投稿する際には非公開のマニュアルや内部データの情報が含まれていないことをご確認の上お願いいたします。
-            </dd>
-          </div>
-        </dl>
-      </section>
+      <div
+        className="guideline-tabs"
+        role="tablist"
+        aria-label="ガイドラインの対象切り替え"
+      >
+        <button
+          type="button"
+          role="tab"
+          id="guideline-tab-general"
+          aria-selected={activeTab === "general"}
+          aria-controls="guideline-panel-general"
+          tabIndex={activeTab === "general" ? 0 : -1}
+          onClick={() => setActiveTab("general")}
+        >
+          一般の方向け
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="guideline-tab-business"
+          aria-selected={activeTab === "business"}
+          aria-controls="guideline-panel-business"
+          tabIndex={activeTab === "business" ? 0 : -1}
+          onClick={() => setActiveTab("business")}
+        >
+          企業・店舗向け
+        </button>
+      </div>
+      {activeTab === "general" && (
+        <div
+          id="guideline-panel-general"
+          role="tabpanel"
+          aria-labelledby="guideline-tab-general"
+        >
+          <section className="guideline-block">
+            <h2>
+              <Icon name="shield" size={20} />
+              投稿の匿名性とプライバシー保護について
+            </h2>
+            <p>
+              当アプリでは、投稿者が特定されたり、職場等から報復されることを防ぐため、厳重な匿名システムを採用しております。
+            </p>
+            <dl className="guideline-list">
+              <div>
+                <dt>データ開示の制限</dt>
+                <dd>
+                  口コミが一定件数（５件）に満たない店舗のデータは、企業側に詳細を開示しません。
+                </dd>
+              </div>
+              <div>
+                <dt>投稿日や勤務期間の曖昧化</dt>
+                <dd>
+                  投稿日時や勤務期間は「○年○月上旬」のように丸めて表示し、シフトや勤務時期からの特定を防ぎます。
+                </dd>
+              </div>
+              <div>
+                <dt>要約データとしての提供</dt>
+                <dd>
+                  企業にはテキストの生データをそのまま渡すのではなく、統計データやAIによる「強み・課題の要約レポート」に変換して提供することで、個人が特定されるリスクを大幅に排除しています。
+                </dd>
+              </div>
+            </dl>
+          </section>
+          <section className="guideline-block">
+            <h2>
+              <Icon name="star" size={20} />
+              投稿をおすすめする内容（推奨）
+            </h2>
+            <p>
+              実際に働いた方だからこそ分かる情報は、次にバイトを探す方の大きな参考になります。以下のような内容の投稿をおすすめします。
+            </p>
+            <dl className="guideline-list">
+              <div>
+                <dt>職場の雰囲気・人間関係</dt>
+                <dd>話しやすさ、質問のしやすさ、学生や同年代の多さなど</dd>
+              </div>
+              <div>
+                <dt>業務内容の範囲</dt>
+                <dd>レジ、品出し、発注補助など実際の一般的な業務範囲</dd>
+              </div>
+              <div>
+                <dt>シフト・働きやすさ</dt>
+                <dd>シフトの組みやすさ、急な休みの相談しやすさなど</dd>
+              </div>
+            </dl>
+          </section>
+          <section className="guideline-block">
+            <h2>
+              <Icon name="alert" size={20} />
+              口コミ投稿ガイドライン（禁止事項）
+            </h2>
+            <p>
+              すべての方が安心して情報を活用できるよう、以下の表現を含む投稿はシステムによる自動伏字化フィルターの対象となる他、運営の裁量により予告なく非表示・削除する場合（悪質なアカウントは投稿停止・利用禁止）があります。
+            </p>
+            <dl className="guideline-list">
+              <div>
+                <dt>実名・個人を特定できる情報の記載</dt>
+                <dd>
+                  氏名、あだ名など個人を特定できる情報の記載はお控えください。
+                </dd>
+              </div>
+              <div>
+                <dt>噂話や憶測</dt>
+                <dd>
+                  他者から聞いた話や噂話ではなく、ご自身が働いた経験に基づく口コミを投稿してください。また、大げさな決めつけや断定するような表現は誤解を生む恐れがありますのでご遠慮ください。
+                </dd>
+              </div>
+              <div>
+                <dt>個人の人格攻撃・誹謗中傷</dt>
+                <dd>
+                  事実に基づかない悪意のある非難や、人格を否定するような表現は禁止しております。
+                  <span className="guideline-example">
+                    NG例：「バカ」「アホ」「無能」など
+                  </span>
+                </dd>
+              </div>
+              <div>
+                <dt>差別的な表現</dt>
+                <dd>
+                  性別、年齢、国籍、出身、人種・民族、障害の有無、宗教、外見などの属性を理由に、人を一方的に評価・攻撃するような表現はご遠慮ください。
+                  <span className="guideline-example">
+                    NG例：「女のくせに」「外国人だから」など
+                  </span>
+                </dd>
+              </div>
+              <div>
+                <dt>営業秘密・社外秘情報の漏洩（守秘義務の遵守）</dt>
+                <dd>
+                  退職後であっても、元勤務先との秘密保持義務に違反する行為は法的責任を問われる可能性があります。以下の情報は固く禁止します。
+                  <ul className="guideline-ng-list">
+                    <li>
+                      未公開の事業情報（新店舗オープン予定、未発表の新メニュー・新商品など）
+                    </li>
+                    <li>
+                      業務マニュアル・ノウハウ（レジパスワード、金庫管理法、マニュアル丸写し、売上や原価率などの内部データ）
+                    </li>
+                    <li>
+                      犯罪行為や内部告発（事実確認が取れない告発は行わず、然るべき行政機関へ相談してください）
+                    </li>
+                  </ul>
+                </dd>
+              </div>
+            </dl>
+          </section>
+        </div>
+      )}
+      {activeTab === "business" && (
+        <div
+          id="guideline-panel-business"
+          role="tabpanel"
+          aria-labelledby="guideline-tab-business"
+        >
+          <section className="guideline-block">
+            <h2>
+              <Icon name="shield" size={20} />
+              掲載企業様へ：公平な評価と保護に関する規定
+            </h2>
+            <p>
+              当サービスは、求職者と職場のミスマッチをなくす目的で運営されております。掲載企業様および求職者の双方が安心して利用できるよう、以下の通り運用規約を定めます。
+            </p>
+            <dl className="guideline-list">
+              <div>
+                <dt>事実に基づく客観的評価の保障</dt>
+                <dd>
+                  投稿される口コミは、実際に勤務経験のあるユーザー（勤続期間等で加重平均処理）による評価に基づきます。誹謗中傷、事実無根の悪意ある低評価、および企業の社会的評価を著しく不当に低下させる投稿は固く禁止し、システムおよび運営による事前・事後のチェックにて即時削除を行います。
+                </dd>
+              </div>
+              <div>
+                <dt>企業の反論・公式コメント権</dt>
+                <dd>
+                  掲載企業様は、自社の店舗ページにおける口コミに対し、公式回答（改善の取り組みや補足説明）を投稿する権利を有します。これにより、過去の課題が現在改善されている場合のミスマッチを防ぎます。
+                </dd>
+              </div>
+              <div>
+                <dt>非開示・削除請求の迅速対応</dt>
+                <dd>
+                  権利侵害（著作権・名誉毀損・営業秘密侵害）の申し出があった場合、運営事務局はガイドラインに基づき迅速な非表示措置および事実確認を実施します。
+                </dd>
+              </div>
+            </dl>
+          </section>
+        </div>
+      )}
     </main>
   );
 }
