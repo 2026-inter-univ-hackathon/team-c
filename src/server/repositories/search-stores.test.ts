@@ -73,6 +73,8 @@ it("clamps out-of-range pages and applies a bounded SQL limit after filtering", 
   expect(result).toMatchObject({ page: 3, pageCount: 3, total: 25 });
   const [query, params] = unsafe.mock.calls[1];
   expect(query).toContain("desc nulls last");
+  expect(query).toContain('"stores"."bayesian_score" desc nulls last');
+  expect(query).not.toContain("review_ratings");
   expect(query).toMatch(/limit \$\d+ offset \$\d+/);
   expect(params.slice(-2)).toEqual([12, 24]);
 });
