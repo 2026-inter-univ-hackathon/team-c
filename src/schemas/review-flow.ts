@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  containsForbiddenWord,
+  FORBIDDEN_WORD_MESSAGE,
+} from "../lib/forbidden-words";
 
 export const GUIDELINE_VERSION = 1;
 export const DEV_REVIEW_USER_ID = "10000000-0000-4000-8000-000000000099";
@@ -125,7 +129,8 @@ export const createReviewInputSchema = z.strictObject({
       (value) =>
         Array.from(value).length >= 30 && Array.from(value).length <= 300,
       "30〜300文字で入力してください",
-    ),
+    )
+    .refine((value) => !containsForbiddenWord(value), FORBIDDEN_WORD_MESSAGE),
   agreed: z.literal(true),
   guidelineVersion: z.literal(GUIDELINE_VERSION),
 });
