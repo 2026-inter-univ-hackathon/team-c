@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { storeSearchSchema } from "../schemas/store-search";
+import { formatFuzzyDate } from "../lib/fuzzy-date";
 import { withDb } from "./db";
 import {
   searchStoresUseCase,
@@ -58,7 +59,7 @@ export const getStoreDetail = createServerFn({ method: "GET" })
           pageCount,
           reviews: reviews.map((review) => ({
             ...review,
-            publishedAt: review.publishedAt.toISOString(),
+            publishedAt: formatFuzzyDate(review.publishedAt),
           })),
         };
       }),
