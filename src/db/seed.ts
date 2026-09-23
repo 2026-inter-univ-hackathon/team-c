@@ -1,23 +1,20 @@
 import { existsSync } from "node:fs";
 import { loadEnvFile } from "node:process";
-import { eq, ne } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { createDbFromClient, createPostgresClient } from "./client";
+import {
+  demoAuthors,
+  demoReviewCountForStore,
+  demoReviewProfileAt,
+  demoStoreAt,
+} from "./demo-content";
 import * as schema from "./schema";
 import { syncStoreWeightedScoresWithDb } from "../server/services/store-weighted-scores";
 import {
   assertDevReviewPostingEnabled,
   DEV_REVIEW_USER_ID,
 } from "../server/dev-review-access";
-import {
-  GUIDELINE_VERSION,
-  atmosphereTags,
-  staffTags,
-  occupations,
-  workDurations,
-  employmentStatuses,
-  managerPresences,
-  recommendations,
-} from "../schemas/review-flow";
+import { GUIDELINE_VERSION } from "../schemas/review-flow";
 
 if (existsSync(".env")) loadEnvFile(".env");
 assertDevReviewPostingEnabled(process.env);
@@ -134,47 +131,13 @@ async function seed() {
       )
       .onConflictDoNothing();
 
-    // The existing data is explicitly designated dummy data. Preserve manual posts by the fixed user.
-    await tx
-      .delete(schema.reviews)
-      .where(ne(schema.reviews.userId, DEV_REVIEW_USER_ID));
-
-    const areas = [
-      ["東京都", "新宿区", "早稲田"],
-      ["東京都", "豊島区", "池袋"],
-      ["東京都", "北区", "赤羽"],
-      ["東京都", "渋谷区", "渋谷"],
-      ["神奈川県", "横浜市", "横浜"],
-      ["神奈川県", "川崎市", "川崎"],
-      ["埼玉県", "さいたま市", "大宮"],
-      ["千葉県", "船橋市", "船橋"],
-    ] as const;
-    const kinds = [
-      { title: "こもれびカフェ", category: 1, task: "ドリンク作りとレジ" },
-      { title: "まちかどマート", category: 2, task: "品出しと宅配便の受付" },
-      { title: "ひなた学習室", category: 3, task: "教材準備と生徒への説明" },
-    ] as const;
-    const stories = [
-      "最初はレジとドリンク作りを同時に覚えるのが大変でしたが、混雑前に練習時間を取ってもらえました。学校行事の休みは早めに相談すると調整してくれました。",
-      "朝は納品とレジが重なるので、優先順位を先輩に聞いてから動くと安心です。ミスをしたときは責めずに手順を一緒に見直してくれました。",
-      "授業の前に教材を確認する時間が必要です。質問に答えられないときは社員に相談でき、分からないまま生徒に説明する必要はありませんでした。",
-      "ランチのピークは忙しいものの、役割分担がはっきりしていました。テスト期間のシフトは一ヶ月ほど前に伝えると調整しやすかったです。",
-      "夕方は宅配の受付が増えます。初めは覚えることが多かったので、自分用のメモを作って確認していました。先輩へ質問しやすい雰囲気です。",
-      "定期テスト前は生徒からの質問が集中します。授業後に短い振り返りの時間があり、次回に向けて説明を準備できたのが助かりました。",
-      "平日の午後は比較的落ち着いていて、新しい仕事を練習できました。週末は急に混みますが、困ったときは近くのスタッフが声をかけてくれます。",
-      "シフトの希望は毎月決まった時期に提出します。直前の変更は難しいので、予定が決まったら早めに伝えると働きやすいと思います。",
-      "長く働いている方が多く、作業のコツを教えてくれました。静かな時間はもくもくと仕事を進め、混むと自然に声をかけ合う職場でした。",
-      "閉店前は片付けと会計が重なり、慣れるまでは大変でした。業務の流れを確認してから入ると安心です。残業はほとんどありませんでした。",
-    ];
     const stores: (typeof schema.stores.$inferInsert)[] = [];
     const categories: (typeof schema.storeCategories.$inferInsert)[] = [];
     const reviews: (typeof schema.reviews.$inferInsert)[] = [];
     const ratings: (typeof schema.reviewRatings.$inferInsert)[] = [];
     for (let i = 0; i < 50; i++) {
-      const area = areas[i % areas.length]!;
-      const kind = kinds[i % kinds.length]!;
+      const { area, kind, name } = demoStoreAt(i);
       const storeId = i < 3 ? id("40000000", i + 1) : id("40000000", 98 + i);
-      const name = `【デモ】${kind.title} ${area[2]}${Math.floor(i / 24) + 1}号店`;
       stores.push({
         id: storeId,
         name,
@@ -187,55 +150,67 @@ async function seed() {
         status: "ACTIVE",
       });
       categories.push({ storeId, categoryId: id("50000000", kind.category) });
-      // 5件未満では投稿者属性を一般化し、5件以上では詳細表示するため、
-      // 両方の状態をデモに用意する。
-      const reviewCountForStore = i < 3 ? 5 : i < 10 ? (i % 4) + 1 : 0;
+      // 比較に十分な声を用意しつつ、5件未満で属性を一般化する表示も残す。
+      const reviewCountForStore = demoReviewCountForStore(i);
       for (let j = 0; j < reviewCountForStore; j++) {
         const reviewId = id("90000000", 1001 + i * 5 + j);
-        const score = ((i + j) % 5) + 1;
+        const profile = demoReviewProfileAt(kind.code, i, j);
+        const author = demoAuthors[j]!;
         const date = new Date(
-          Date.UTC(2026, (i + j) % 8, 1 + ((i * 7 + j * 11) % 28)),
+          Date.UTC(2026, (i + j * 2) % 9, 3 + ((i * 7 + j * 5) % 18)),
         );
         reviews.push({
           id: reviewId,
           storeId,
           userId: id("10000000", 101 + j),
           reviewFormId: formId,
-          employmentStatus:
-            employmentStatuses[(i + j) % employmentStatuses.length],
-          occupation: occupations[(i + j) % occupations.length],
-          workDuration: workDurations[(i + j) % workDurations.length],
-          atmosphereTags: [atmosphereTags[(i + j) % atmosphereTags.length]!],
-          staffTags: [staffTags[(i + j) % staffTags.length]!],
-          managerPresence: managerPresences[(i + j) % managerPresences.length],
-          recommendation: recommendations[(i + j) % recommendations.length],
-          summary: `【架空の口コミ】${stories[(i + j) % stories.length]!}`,
+          employmentStatus: author.employmentStatus,
+          occupation: author.occupation,
+          workDuration: author.workDuration,
+          atmosphereTags: [...profile.atmosphereTags],
+          staffTags: [...profile.staffTags],
+          managerPresence: profile.managerPresence,
+          recommendation: profile.recommendation,
+          summary: `【架空の口コミ】${profile.summary}`,
           guidelineVersion: GUIDELINE_VERSION,
           guidelineAgreedAt: date,
           status: "PUBLISHED",
           publishedAt: date,
         });
-        dims.forEach((dimension, k) =>
+        dims.forEach((dimension) =>
           ratings.push({
             reviewId,
             reviewFormId: formId,
             ratingDimensionId: dimension.id,
-            score: Math.max(1, Math.min(5, score + (k % 3) - 1)),
+            score: profile.ratings[dimension.code],
           }),
         );
       }
     }
-    await tx
-      .insert(schema.stores)
-      .values(stores)
-      .onConflictDoUpdate({
-        target: schema.stores.id,
-        set: { status: "ACTIVE" },
-      });
+    for (const store of stores) {
+      await tx
+        .insert(schema.stores)
+        .values(store)
+        .onConflictDoUpdate({
+          target: schema.stores.id,
+          set: {
+            name: store.name,
+            normalizedName: store.normalizedName,
+            prefecture: store.prefecture,
+            city: store.city,
+            address: store.address,
+            externalSource: store.externalSource,
+            externalId: store.externalId,
+            status: "ACTIVE",
+          },
+        });
+    }
     await tx
       .insert(schema.storeCategories)
       .values(categories)
       .onConflictDoNothing();
+    // Existing reviews may already have embeddings. Never delete or overwrite them here;
+    // only add missing deterministic demo rows so the seed stays non-destructive.
     await tx.insert(schema.reviews).values(reviews).onConflictDoNothing();
     await tx.insert(schema.reviewRatings).values(ratings).onConflictDoNothing();
     for (const store of stores) {

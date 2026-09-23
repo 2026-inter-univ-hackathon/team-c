@@ -24,12 +24,12 @@ CLIでseedやリセットを実行するときも `NODE_ENV=development` を明�
 ## DB更新とseed
 
 1. 読み取り専用のDB確認を行う。
-2. `NODE_ENV=development pnpm run db:prepare-review-flow` で旧ダミー口コミの件数を確認する。
-3. 対象DB・件数を確認後、`NODE_ENV=development pnpm run db:prepare-review-flow -- --execute` で旧ダミー口コミを削除する。
-4. `pnpm run db:migrate` で新規マイグレーションを適用する。
-5. `NODE_ENV=development pnpm run db:seed` で、50店舗に新形式のダミー口コミを計32件投入する。
+2. `pnpm run db:migrate` で新規マイグレーションを適用する。
+3. 旧形式のダミー口コミを整理する必要がある場合だけ、`NODE_ENV=development pnpm run db:prepare-review-flow` で対象件数を確認する。
+4. 手順3で確認した旧形式データを削除する場合は、バックアップ後に `NODE_ENV=development pnpm run db:prepare-review-flow -- --execute` を明示して実行する。
+5. `NODE_ENV=development pnpm run db:seed` で、50店舗に新形式のダミー口コミを計214件投入する。
 
-seedは開発DB名と明示フラグを確認し、固定テストユーザーの投稿を残して旧ダミー口コミを新形式に入れ替える。初回は既存口コミを削除するため、接続先の確認が必須。旧形式の口コミは公開一覧に出さない。認証済み投稿者への差し替えは後続作業。
+seedは開発DB名と明示フラグを確認し、既存口コミを削除・上書きせず、固定IDで不足しているダミー口コミだけを追加する。既存口コミに紐づくEmbeddingは保持し、新しいEmbeddingは生成しない。旧形式の口コミは公開一覧に出さない。認証済み投稿者への差し替えは後続作業。
 
 ## 固定テストユーザーの投稿リセット
 
