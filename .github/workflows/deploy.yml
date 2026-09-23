@@ -1,0 +1,54 @@
+name: Deploy development demo
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: development-demo-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: [self-hosted, linux, x64, team-c-demo]
+    timeout-minutes: 15
+    env:
+      PATH: /opt/node/bin:/usr/local/bin:/usr/bin:/bin
+      SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+      RUN_ID: ${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - name: Check this is still the latest main
+        id: latest
+        run: |
+          latest=$(git ls-remote https://github.com/2026-inter-univ-hackathon/team-c.git refs/heads/main | cut -f1)
+          echo "current=$([[ "$latest" == "$SOURCE_SHA" ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - name: Install and deploy
+        if: steps.latest.outputs.current == 'true'
+        run: |
+          pnpm install --frozen-lockfile
+          python3 - <<'PY'
+          import json, os
+          with open('release.json', 'w') as f:
+              json.dump({'source_sha': os.environ['SOURCE_SHA']}, f)
+          PY
+          mkdir -p "/opt/team-c/incoming/$RUN_ID"
+          tar --exclude=./.git --exclude=./.env --exclude=./.pnpm-store \
+            -czf "/opt/team-c/incoming/$RUN_ID/release.tar.gz" .
+          sudo /usr/local/sbin/team-c-deploy "$RUN_ID" "$SOURCE_SHA-$RUN_ID"
+      - name: Clean staged archive
+        if: always()
+        run: rm -rf "/opt/team-c/incoming/$RUN_ID"
