@@ -28,6 +28,7 @@ export function SearchForm({
         });
       }}
     >
+      <input type="hidden" name="atmosphere" value={search.atmosphere} />
       <SearchField
         icon="pin"
         label="エリア"

@@ -42,6 +42,7 @@
 - Validation: Zod
 - Test: Vitest
 - DB: PostgreSQL 18 / Drizzle ORM / postgres.js
+- 意味検索: pgvector / OpenAI Embeddings API
 - 旧プロトタイプ: `legacy/index.html`
 - 画像: `img/` に同梱（サムネイルは Unsplash の写真、アイコン等は自前 SVG）。外部サイトからは読み込まない
 

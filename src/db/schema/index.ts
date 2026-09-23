@@ -16,6 +16,7 @@ import {
   unique,
   uniqueIndex,
   uuid,
+  vector,
   varchar,
 } from "drizzle-orm/pg-core";
 
@@ -475,6 +476,27 @@ export const reviewAnswers = pgTable(
       sql`char_length(trim(${table.answerText})) > 0`,
     ),
     index("review_answers_form_id_idx").on(table.reviewFormId),
+  ],
+);
+
+export const reviewEmbeddings = pgTable(
+  "review_embeddings",
+  {
+    reviewId: uuid("review_id")
+      .primaryKey()
+      .references(() => reviews.id, { onDelete: "cascade" }),
+    model: varchar("model", { length: 80 }).notNull(),
+    sourceHash: varchar("source_hash", { length: 64 }).notNull(),
+    embedding: vector("embedding", { dimensions: 512 }).notNull(),
+    indexedAt: timestamp("indexed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("review_embeddings_embedding_hnsw_idx").using(
+      "hnsw",
+      table.embedding.op("vector_cosine_ops"),
+    ),
   ],
 );
 

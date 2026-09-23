@@ -7,6 +7,7 @@ const optionalEnvString = z.preprocess(
 
 const envSchema = z.object({
   DATABASE_URL: optionalEnvString,
+  OPENAI_API_KEY: optionalEnvString,
   BASIC_AUTH_USER: optionalEnvString,
   BASIC_AUTH_PASSWORD: optionalEnvString,
   SESSION_SECRET: z.preprocess(
