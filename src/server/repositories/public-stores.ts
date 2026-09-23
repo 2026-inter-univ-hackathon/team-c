@@ -306,7 +306,8 @@ export async function listPublicReviewsByStoreId(
   storeId: string,
   options?: PublicListOptions,
 ): Promise<PublicReview[]> {
-  const { limit, offset, viewerUserId } = normalizePublicListOptions(options);
+  const { limit, offset } = normalizePublicListOptions(options);
+  const viewerUserId = options?.viewerUserId ?? null;
   // Count and rows must share one database snapshot. Otherwise a review could
   // be hidden between separate queries and expose detailed attributes below
   // the anonymity threshold.
