@@ -63,12 +63,8 @@
           "name": "auth_accounts_user_id_users_id_fk",
           "tableFrom": "auth_accounts",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -78,18 +74,12 @@
         "auth_accounts_provider_user_unique": {
           "name": "auth_accounts_provider_user_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "provider",
-            "provider_user_id"
-          ]
+          "columns": ["provider", "provider_user_id"]
         },
         "auth_accounts_user_provider_unique": {
           "name": "auth_accounts_user_provider_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "user_id",
-            "provider"
-          ]
+          "columns": ["user_id", "provider"]
         }
       },
       "policies": {},
@@ -134,9 +124,7 @@
         "categories_code_unique": {
           "name": "categories_code_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "code"
-          ]
+          "columns": ["code"]
         }
       },
       "policies": {},
@@ -209,12 +197,8 @@
           "name": "organization_memberships_organization_id_organizations_id_fk",
           "tableFrom": "organization_memberships",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -222,12 +206,8 @@
           "name": "organization_memberships_user_id_users_id_fk",
           "tableFrom": "organization_memberships",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -235,10 +215,7 @@
       "compositePrimaryKeys": {
         "organization_memberships_pk": {
           "name": "organization_memberships_pk",
-          "columns": [
-            "organization_id",
-            "user_id"
-          ]
+          "columns": ["organization_id", "user_id"]
         }
       },
       "uniqueConstraints": {},
@@ -353,12 +330,8 @@
           "name": "platform_role_assignments_user_id_users_id_fk",
           "tableFrom": "platform_role_assignments",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -366,12 +339,8 @@
           "name": "platform_role_assignments_platform_role_id_platform_roles_id_fk",
           "tableFrom": "platform_role_assignments",
           "tableTo": "platform_roles",
-          "columnsFrom": [
-            "platform_role_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["platform_role_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -379,10 +348,7 @@
       "compositePrimaryKeys": {
         "platform_role_assignments_pk": {
           "name": "platform_role_assignments_pk",
-          "columns": [
-            "user_id",
-            "platform_role_id"
-          ]
+          "columns": ["user_id", "platform_role_id"]
         }
       },
       "uniqueConstraints": {},
@@ -421,9 +387,7 @@
         "platform_roles_code_unique": {
           "name": "platform_roles_code_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "code"
-          ]
+          "columns": ["code"]
         }
       },
       "policies": {},
@@ -474,9 +438,7 @@
         "rating_dimensions_code_unique": {
           "name": "rating_dimensions_code_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "code"
-          ]
+          "columns": ["code"]
         }
       },
       "policies": {},
@@ -534,14 +496,8 @@
           "name": "review_answers_review_form_fk",
           "tableFrom": "review_answers",
           "tableTo": "reviews",
-          "columnsFrom": [
-            "review_id",
-            "review_form_id"
-          ],
-          "columnsTo": [
-            "id",
-            "review_form_id"
-          ],
+          "columnsFrom": ["review_id", "review_form_id"],
+          "columnsTo": ["id", "review_form_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -549,14 +505,8 @@
           "name": "review_answers_question_form_fk",
           "tableFrom": "review_answers",
           "tableTo": "review_questions",
-          "columnsFrom": [
-            "review_question_id",
-            "review_form_id"
-          ],
-          "columnsTo": [
-            "id",
-            "review_form_id"
-          ],
+          "columnsFrom": ["review_question_id", "review_form_id"],
+          "columnsTo": ["id", "review_form_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -564,10 +514,7 @@
       "compositePrimaryKeys": {
         "review_answers_pk": {
           "name": "review_answers_pk",
-          "columns": [
-            "review_id",
-            "review_question_id"
-          ]
+          "columns": ["review_id", "review_question_id"]
         }
       },
       "uniqueConstraints": {},
@@ -632,12 +579,8 @@
           "name": "review_form_rating_dimensions_review_form_id_review_forms_id_fk",
           "tableFrom": "review_form_rating_dimensions",
           "tableTo": "review_forms",
-          "columnsFrom": [
-            "review_form_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["review_form_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -645,12 +588,8 @@
           "name": "review_form_rating_dimensions_rating_dimension_id_rating_dimensions_id_fk",
           "tableFrom": "review_form_rating_dimensions",
           "tableTo": "rating_dimensions",
-          "columnsFrom": [
-            "rating_dimension_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["rating_dimension_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -658,10 +597,7 @@
       "compositePrimaryKeys": {
         "review_form_rating_dimensions_pk": {
           "name": "review_form_rating_dimensions_pk",
-          "columns": [
-            "review_form_id",
-            "rating_dimension_id"
-          ]
+          "columns": ["review_form_id", "rating_dimension_id"]
         }
       },
       "uniqueConstraints": {},
@@ -731,9 +667,7 @@
         "review_forms_version_unique": {
           "name": "review_forms_version_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "version"
-          ]
+          "columns": ["version"]
         }
       },
       "policies": {},
@@ -828,12 +762,8 @@
           "name": "review_questions_review_form_id_review_forms_id_fk",
           "tableFrom": "review_questions",
           "tableTo": "review_forms",
-          "columnsFrom": [
-            "review_form_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["review_form_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -843,18 +773,12 @@
         "review_questions_form_code_unique": {
           "name": "review_questions_form_code_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "review_form_id",
-            "code"
-          ]
+          "columns": ["review_form_id", "code"]
         },
         "review_questions_id_form_id_unique": {
           "name": "review_questions_id_form_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "id",
-            "review_form_id"
-          ]
+          "columns": ["id", "review_form_id"]
         }
       },
       "policies": {},
@@ -921,14 +845,8 @@
           "name": "review_ratings_review_form_fk",
           "tableFrom": "review_ratings",
           "tableTo": "reviews",
-          "columnsFrom": [
-            "review_id",
-            "review_form_id"
-          ],
-          "columnsTo": [
-            "id",
-            "review_form_id"
-          ],
+          "columnsFrom": ["review_id", "review_form_id"],
+          "columnsTo": ["id", "review_form_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -936,14 +854,8 @@
           "name": "review_ratings_form_dimension_fk",
           "tableFrom": "review_ratings",
           "tableTo": "review_form_rating_dimensions",
-          "columnsFrom": [
-            "review_form_id",
-            "rating_dimension_id"
-          ],
-          "columnsTo": [
-            "review_form_id",
-            "rating_dimension_id"
-          ],
+          "columnsFrom": ["review_form_id", "rating_dimension_id"],
+          "columnsTo": ["review_form_id", "rating_dimension_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -951,10 +863,7 @@
       "compositePrimaryKeys": {
         "review_ratings_pk": {
           "name": "review_ratings_pk",
-          "columns": [
-            "review_id",
-            "rating_dimension_id"
-          ]
+          "columns": ["review_id", "rating_dimension_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1034,12 +943,8 @@
           "name": "review_reactions_review_id_reviews_id_fk",
           "tableFrom": "review_reactions",
           "tableTo": "reviews",
-          "columnsFrom": [
-            "review_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["review_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1047,12 +952,8 @@
           "name": "review_reactions_user_id_users_id_fk",
           "tableFrom": "review_reactions",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1060,11 +961,7 @@
       "compositePrimaryKeys": {
         "review_reactions_pk": {
           "name": "review_reactions_pk",
-          "columns": [
-            "review_id",
-            "user_id",
-            "reaction_type"
-          ]
+          "columns": ["review_id", "user_id", "reaction_type"]
         }
       },
       "uniqueConstraints": {},
@@ -1344,12 +1241,8 @@
           "name": "reviews_store_id_stores_id_fk",
           "tableFrom": "reviews",
           "tableTo": "stores",
-          "columnsFrom": [
-            "store_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["store_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1357,12 +1250,8 @@
           "name": "reviews_user_id_users_id_fk",
           "tableFrom": "reviews",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1370,12 +1259,8 @@
           "name": "reviews_review_form_id_review_forms_id_fk",
           "tableFrom": "reviews",
           "tableTo": "review_forms",
-          "columnsFrom": [
-            "review_form_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["review_form_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1383,12 +1268,8 @@
           "name": "reviews_hidden_by_user_id_users_id_fk",
           "tableFrom": "reviews",
           "tableTo": "users",
-          "columnsFrom": [
-            "hidden_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["hidden_by_user_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1398,10 +1279,7 @@
         "reviews_id_form_id_unique": {
           "name": "reviews_id_form_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "id",
-            "review_form_id"
-          ]
+          "columns": ["id", "review_form_id"]
         }
       },
       "policies": {},
@@ -1512,12 +1390,8 @@
           "name": "sessions_user_id_users_id_fk",
           "tableFrom": "sessions",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1527,9 +1401,7 @@
         "sessions_token_hash_unique": {
           "name": "sessions_token_hash_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token_hash"
-          ]
+          "columns": ["token_hash"]
         }
       },
       "policies": {},
@@ -1575,12 +1447,8 @@
           "name": "store_categories_store_id_stores_id_fk",
           "tableFrom": "store_categories",
           "tableTo": "stores",
-          "columnsFrom": [
-            "store_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["store_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1588,12 +1456,8 @@
           "name": "store_categories_category_id_categories_id_fk",
           "tableFrom": "store_categories",
           "tableTo": "categories",
-          "columnsFrom": [
-            "category_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["category_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1601,10 +1465,7 @@
       "compositePrimaryKeys": {
         "store_categories_pk": {
           "name": "store_categories_pk",
-          "columns": [
-            "store_id",
-            "category_id"
-          ]
+          "columns": ["store_id", "category_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1858,12 +1719,8 @@
           "name": "stores_organization_id_organizations_id_fk",
           "tableFrom": "stores",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
