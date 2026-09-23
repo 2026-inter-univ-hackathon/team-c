@@ -32,6 +32,12 @@ import {
 } from "../server/use-cases";
 
 const storeIdSchema = z.object({ storeId: z.uuid() });
+const ratingEnds = {
+  atmosphere: ["ギスギス", "アットホーム・風通し良"],
+  training: ["放置気味", "手厚いフォロー"],
+  workload: ["息つく暇なし", "落ち着いて作業できる"],
+  flexibility: ["変更が難しい", "予定に柔軟"],
+} as const;
 const titles = [
   "属性入力",
   "職場の特徴",
@@ -131,6 +137,15 @@ export const Route = createFileRoute("/stores/$storeId/reviews/new")({
   component: ReviewPage,
 });
 
+function RequiredLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="review-field-label">
+      <span>{children}</span>
+      <span className="review-required">必須</span>
+    </span>
+  );
+}
+
 function ToggleGroup<T extends string>({
   label,
   values,
@@ -143,9 +158,9 @@ function ToggleGroup<T extends string>({
   onSelect: (value: T) => void;
 }) {
   return (
-    <fieldset className="grid gap-2">
-      <legend className="font-semibold text-stone-800">
-        {label} <span className="text-orange-700">必須</span>
+    <fieldset className="review-field">
+      <legend className="w-full font-semibold text-stone-800">
+        <RequiredLabel>{label}</RequiredLabel>
       </legend>
       <div className="flex flex-wrap gap-2">
         {values.map((value) => (
@@ -154,7 +169,7 @@ function ToggleGroup<T extends string>({
             type="button"
             aria-pressed={selected === value}
             onClick={() => onSelect(value)}
-            className={`min-h-11 rounded-xl border px-4 py-2 text-sm focus-visible:outline-2 focus-visible:outline-orange-600 ${selected === value ? "border-orange-600 bg-orange-600 text-white" : "border-stone-300 bg-white text-stone-800"}`}
+            className="review-choice"
           >
             {value}
           </button>
@@ -183,7 +198,13 @@ const consentRules = [
   },
 ] as const;
 
-function ConsentModal({ onAgree }: { onAgree: () => void }) {
+function ConsentModal({
+  onAgree,
+  onCancel,
+}: {
+  onAgree: () => void;
+  onCancel: () => void;
+}) {
   const ref = useRef<HTMLDialogElement>(null);
   const [checked, setChecked] = useState(false);
   useEffect(() => {
@@ -192,11 +213,17 @@ function ConsentModal({ onAgree }: { onAgree: () => void }) {
   return (
     <dialog
       ref={ref}
-      className="fixed inset-0 z-50 m-0 h-full max-h-none w-full max-w-none items-center justify-center bg-transparent p-4 text-stone-900 backdrop:bg-stone-900/60 open:flex"
+      className="review-consent fixed inset-0 z-50 m-0 h-full max-h-none w-full max-w-none items-center justify-center bg-transparent p-4 text-stone-900 backdrop:bg-stone-900/60 open:flex"
       aria-labelledby="consent-modal-title"
-      onCancel={(event) => event.preventDefault()}
+      onCancel={(event) => {
+        event.preventDefault();
+        onCancel();
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onCancel();
+      }}
     >
-      <div className="max-h-full w-full max-w-lg overflow-y-auto rounded-2xl border border-orange-100 bg-white p-6 sm:p-8">
+      <div className="review-consent-panel">
         <h2 id="consent-modal-title" className="text-xl font-bold">
           利用規約およびプライバシーポリシーへの同意
         </h2>
@@ -205,10 +232,7 @@ function ConsentModal({ onAgree }: { onAgree: () => void }) {
         </p>
         <ul className="mt-4 grid gap-3 text-sm text-stone-700">
           {consentRules.map((rule) => (
-            <li
-              key={rule.title}
-              className="rounded-lg border border-orange-100 bg-orange-50 p-3"
-            >
+            <li key={rule.title} className="review-consent-rule">
               <strong className="block text-stone-900">{rule.title}</strong>
               {rule.body}
             </li>
@@ -216,19 +240,11 @@ function ConsentModal({ onAgree }: { onAgree: () => void }) {
         </ul>
         <p className="mt-4 text-sm text-stone-600">
           詳細な内容については、必ず{" "}
-          <Link
-            to="/terms"
-            target="_blank"
-            className="text-orange-700 underline"
-          >
+          <Link to="/terms" target="_blank" className="consent-policy-link">
             利用規約全文
           </Link>{" "}
           および{" "}
-          <Link
-            to="/privacy"
-            target="_blank"
-            className="text-orange-700 underline"
-          >
+          <Link to="/privacy" target="_blank" className="consent-policy-link">
             プライバシーポリシー
           </Link>{" "}
           をご確認ください。
@@ -242,7 +258,10 @@ function ConsentModal({ onAgree }: { onAgree: () => void }) {
           />
           <span>利用規約とプライバシーポリシーに同意する</span>
         </label>
-        <div className="mt-6 flex justify-end">
+        <div className="mt-6 flex flex-wrap justify-end gap-3">
+          <Button variant="secondary" onClick={onCancel}>
+            キャンセル
+          </Button>
           <Button
             disabled={!checked}
             onClick={() => {
@@ -374,30 +393,46 @@ function ReviewPage() {
     agreed: true,
   });
   return (
-    <main id="main" className="min-h-dvh bg-orange-50 px-4 py-8 text-stone-900">
+    <main id="main" className="review-page">
       {!agreedToPolicy && (
-        <ConsentModal onAgree={() => setAgreedToPolicy(true)} />
+        <ConsentModal
+          onAgree={() => setAgreedToPolicy(true)}
+          onCancel={() => {
+            void router.navigate({
+              to: "/stores/$storeId",
+              params: { storeId },
+              search: { page: 1 },
+            });
+          }}
+        />
       )}
       <div className="mx-auto max-w-2xl" inert={!agreedToPolicy}>
         <Link
           to="/stores/$storeId"
           params={{ storeId: store.id }}
           search={{ page: 1 }}
-          className="text-sm text-orange-700"
+          className="review-back-link"
         >
           ← {store.name}へ戻る
         </Link>
-        <div className="mt-5 rounded-2xl border border-orange-100 bg-white p-5 shadow-sm sm:p-8">
-          <p className="text-sm text-stone-500">
-            {store.name}への口コミ / {step + 1} of 5
+        <div className="review-form-card">
+          <div className="review-step-meta">
+            <p>{store.name}への口コミ</p>
+            <span>
+              STEP {step + 1} / {titles.length}
+            </span>
+          </div>
+          <h1 className="review-form-title">{titles[step]}</h1>
+          <p className="review-step-description">
+            {step === 2
+              ? "バーを動かして、あなたの実感に近い評価を選んでください。"
+              : step === 4
+                ? "公開される内容を確認して、投稿を完了しましょう。"
+                : "あなたの経験に近いものを教えてください。"}
           </p>
-          <h1 className="mt-2 text-2xl font-bold">{titles[step]}</h1>
-          <div
-            className="mt-4 h-2 overflow-hidden rounded-full bg-orange-100"
-            aria-hidden="true"
-          >
+          <div className="review-progress" aria-hidden="true">
             <div
-              className="h-full bg-orange-600"
+              className="review-progress-fill"
               style={{ width: `${((step + 1) / 5) * 100}%` }}
             />
           </div>
@@ -411,7 +446,7 @@ function ReviewPage() {
               ))}
             </ul>
           )}
-          <div className="mt-7 grid gap-6">
+          <div className="review-fields">
             {step === 0 && (
               <>
                 <ToggleGroup
@@ -466,10 +501,9 @@ function ReviewPage() {
             )}
             {step === 1 && (
               <>
-                <fieldset>
-                  <legend className="font-semibold">
-                    職場の雰囲気に近いものは？{" "}
-                    <span className="text-orange-700">必須</span>
+                <fieldset className="review-field">
+                  <legend className="w-full font-semibold">
+                    <RequiredLabel>職場の雰囲気に近いものは？</RequiredLabel>
                   </legend>
                   <p className="text-sm text-stone-500">
                     近いものを1〜2つ選んでください
@@ -481,17 +515,18 @@ function ReviewPage() {
                         key={tag}
                         aria-pressed={draft.atmosphereTags.includes(tag)}
                         onClick={() => toggle("atmosphereTags", tag)}
-                        className={`min-h-11 rounded-full border px-4 py-2 ${draft.atmosphereTags.includes(tag) ? "bg-orange-600 text-white" : "bg-white"}`}
+                        className="review-choice"
                       >
                         {labels.atmosphere[tag]}
                       </button>
                     ))}
                   </div>
                 </fieldset>
-                <fieldset>
-                  <legend className="font-semibold">
-                    一緒に働いていたスタッフはどんな層が中心でしたか？{" "}
-                    <span className="text-orange-700">必須</span>
+                <fieldset className="review-field">
+                  <legend className="w-full font-semibold">
+                    <RequiredLabel>
+                      一緒に働いていたスタッフはどんな層が中心でしたか？
+                    </RequiredLabel>
                   </legend>
                   <p className="text-sm text-stone-500">1〜2つ選択</p>
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -501,7 +536,7 @@ function ReviewPage() {
                         key={tag}
                         aria-pressed={draft.staffTags.includes(tag)}
                         onClick={() => toggle("staffTags", tag)}
-                        className={`min-h-11 rounded-full border px-4 py-2 ${draft.staffTags.includes(tag) ? "bg-orange-600 text-white" : "bg-white"}`}
+                        className="review-choice"
                       >
                         {labels.staff[tag]}
                       </button>
@@ -529,37 +564,102 @@ function ReviewPage() {
             {step === 2 && (
               <>
                 {ratingCodes.map((code) => (
-                  <fieldset key={code}>
-                    <legend className="font-semibold">
-                      {labels.rating[code]}{" "}
-                      <span className="text-orange-700">必須</span>
+                  <fieldset key={code} className="review-field review-rating">
+                    <legend className="w-full font-semibold">
+                      <RequiredLabel>{labels.rating[code]}</RequiredLabel>
                     </legend>
-                    <p className="text-xs text-stone-500">
-                      {code === "atmosphere"
-                        ? "1 ギスギス / 5 アットホーム・風通し良"
-                        : code === "training"
-                          ? "1 放置気味 / 5 手厚いフォロー"
-                          : code === "workload"
-                            ? "1 息つく暇なし / 5 落ち着いて作業できる"
-                            : "1 変更が難しい / 5 予定に柔軟"}
-                    </p>
-                    <div className="mt-2 flex gap-2">
-                      {[1, 2, 3, 4, 5].map((score) => (
-                        <button
-                          type="button"
-                          key={score}
-                          aria-label={`${labels.rating[code]} ${score}点`}
-                          aria-pressed={draft.ratings[code] === score}
-                          onClick={() =>
+                    <div
+                      className="review-rating-control"
+                      data-selected={draft.ratings[code] !== undefined}
+                    >
+                      <p
+                        id={`rating-status-${code}`}
+                        className="review-rating-score"
+                      >
+                        {draft.ratings[code] === undefined ? (
+                          "未選択"
+                        ) : (
+                          <>
+                            <strong>{draft.ratings[code]}</strong>
+                            <span> / 5</span>
+                          </>
+                        )}
+                      </p>
+                      <input
+                        type="range"
+                        min={1}
+                        max={5}
+                        step={1}
+                        value={draft.ratings[code] ?? 3}
+                        aria-label={labels.rating[code]}
+                        aria-describedby={`rating-status-${code} rating-ends-${code}`}
+                        aria-valuetext={
+                          draft.ratings[code] === undefined
+                            ? "未選択"
+                            : `${draft.ratings[code]}点（5点満点）`
+                        }
+                        onChange={(event) =>
+                          patch({
+                            ratings: {
+                              ...draft.ratings,
+                              [code]: Number(event.target.value),
+                            },
+                          })
+                        }
+                        onPointerUp={(event) =>
+                          patch({
+                            ratings: {
+                              ...draft.ratings,
+                              [code]: Number(event.currentTarget.value),
+                            },
+                          })
+                        }
+                        onKeyUp={(event) => {
+                          if (
+                            [
+                              "ArrowLeft",
+                              "ArrowRight",
+                              "ArrowUp",
+                              "ArrowDown",
+                              "Home",
+                              "End",
+                              " ",
+                              "Enter",
+                            ].includes(event.key)
+                          ) {
                             patch({
-                              ratings: { ...draft.ratings, [code]: score },
-                            })
+                              ratings: {
+                                ...draft.ratings,
+                                [code]: Number(event.currentTarget.value),
+                              },
+                            });
                           }
-                          className={`min-h-11 min-w-11 rounded-lg border ${draft.ratings[code] === score ? "bg-orange-600 text-white" : "bg-white"}`}
-                        >
-                          {score}
-                        </button>
-                      ))}
+                        }}
+                        className="review-rating-slider"
+                      />
+                      <div aria-hidden="true" className="review-rating-ticks">
+                        {[1, 2, 3, 4, 5].map((score) => (
+                          <span
+                            key={score}
+                            data-active={draft.ratings[code] === score}
+                          >
+                            {score}
+                          </span>
+                        ))}
+                      </div>
+                      <div
+                        id={`rating-ends-${code}`}
+                        className="review-rating-ends"
+                      >
+                        <span>
+                          <span className="sr-only">1点：</span>
+                          {ratingEnds[code][0]}
+                        </span>
+                        <span>
+                          <span className="sr-only">5点：</span>
+                          {ratingEnds[code][1]}
+                        </span>
+                      </div>
                     </div>
                   </fieldset>
                 ))}
@@ -583,8 +683,9 @@ function ReviewPage() {
             )}
             {step === 3 && (
               <label className="block font-semibold">
-                応募前の自分にアドバイスするなら？{" "}
-                <span className="text-orange-700">必須</span>
+                <RequiredLabel>
+                  応募前の自分にアドバイスするなら？
+                </RequiredLabel>
                 <textarea
                   value={draft.summary}
                   onChange={(event) => patch({ summary: event.target.value })}
@@ -623,7 +724,7 @@ function ReviewPage() {
               </>
             )}
           </div>
-          <div className="mt-8 flex justify-between border-t border-orange-100 pt-5">
+          <div className="review-form-actions">
             <Button
               variant="secondary"
               disabled={step === 0 || busy}
