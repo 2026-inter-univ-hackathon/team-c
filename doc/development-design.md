@@ -502,9 +502,9 @@ SNS的な機能が必要になった場合は、Reviewを参照する独立テ�
 
 ### 6.7 初期データ
 
-Seedで固定テストUserと5人のダミー投稿者、50店舗、Category、ReviewForm、4つのRatingDimension、32件のReviewを作成する。固定テストUserの投稿枠は空ける。Organization、Platform Role、Membershipの初期データは現在投入しない。
+Seedで固定テストUserと5人のダミー投稿者、50店舗、Category、ReviewForm、4つのRatingDimension、214件のReviewを作成する。固定テストUserの投稿枠は空ける。Organization、Platform Role、Membershipの初期データは現在投入しない。
 
-Seedは開発・テスト環境だけで実行可能にし、再実行しても重複しないようにする。
+Seedは開発・テスト環境だけで実行可能にし、既存Reviewを削除・上書きせず、再実行しても重複しないようにする。Embeddingは生成しない。
 
 ### 6.8 Transactionと集計
 
