@@ -132,12 +132,14 @@ h3 {
 .brand-mark {
   width: 38px;
   height: 38px;
-  background: var(--orange);
-  color: white;
   display: grid;
   place-items: center;
-  border-radius: 12px 12px 12px 2px;
   margin-right: 9px;
+}
+.brand-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 .brand small {
   position: absolute;
