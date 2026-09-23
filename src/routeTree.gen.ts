@@ -10,7 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CompanyRouteImport } from './routes/company'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as DemoRouteImport } from './routes/demo'
 import { Route as GuidelinesRouteImport } from './routes/guidelines'
 import { Route as OperatorRouteImport } from './routes/operator'
 import { Route as PrivacyRouteImport } from './routes/privacy'
@@ -25,9 +27,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CompanyRoute = CompanyRouteImport.update({
+  id: '/company',
+  path: '/company',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ContactRoute = ContactRouteImport.update({
   id: '/contact',
   path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoRoute = DemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GuidelinesRoute = GuidelinesRouteImport.update({
@@ -73,7 +85,9 @@ const StoresStoreIdReviewsNewRoute = StoresStoreIdReviewsNewRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/company': typeof CompanyRoute
   '/contact': typeof ContactRoute
+  '/demo': typeof DemoRoute
   '/guidelines': typeof GuidelinesRoute
   '/operator': typeof OperatorRoute
   '/privacy': typeof PrivacyRoute
@@ -85,7 +99,9 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/company': typeof CompanyRoute
   '/contact': typeof ContactRoute
+  '/demo': typeof DemoRoute
   '/guidelines': typeof GuidelinesRoute
   '/operator': typeof OperatorRoute
   '/privacy': typeof PrivacyRoute
@@ -98,7 +114,9 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/company': typeof CompanyRoute
   '/contact': typeof ContactRoute
+  '/demo': typeof DemoRoute
   '/guidelines': typeof GuidelinesRoute
   '/operator': typeof OperatorRoute
   '/privacy': typeof PrivacyRoute
@@ -112,7 +130,9 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/company'
     | '/contact'
+    | '/demo'
     | '/guidelines'
     | '/operator'
     | '/privacy'
@@ -124,7 +144,9 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/company'
     | '/contact'
+    | '/demo'
     | '/guidelines'
     | '/operator'
     | '/privacy'
@@ -136,7 +158,9 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/company'
     | '/contact'
+    | '/demo'
     | '/guidelines'
     | '/operator'
     | '/privacy'
@@ -149,7 +173,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CompanyRoute: typeof CompanyRoute
   ContactRoute: typeof ContactRoute
+  DemoRoute: typeof DemoRoute
   GuidelinesRoute: typeof GuidelinesRoute
   OperatorRoute: typeof OperatorRoute
   PrivacyRoute: typeof PrivacyRoute
@@ -169,11 +195,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/company': {
+      id: '/company'
+      path: '/company'
+      fullPath: '/company'
+      preLoaderRoute: typeof CompanyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/contact': {
       id: '/contact'
       path: '/contact'
       fullPath: '/contact'
       preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo': {
+      id: '/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof DemoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/guidelines': {
@@ -237,7 +277,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CompanyRoute: CompanyRoute,
   ContactRoute: ContactRoute,
+  DemoRoute: DemoRoute,
   GuidelinesRoute: GuidelinesRoute,
   OperatorRoute: OperatorRoute,
   PrivacyRoute: PrivacyRoute,
