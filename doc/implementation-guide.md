@@ -1,240 +1,155 @@
 # 実装ガイド
 
-本書は目標とする仕様・構成を含みます。現在の実装範囲と未実装機能は[実装状況](./implementation-status.md)を参照してください。
+更新日: 2026-09-23
 
-この文書は、`doc/development-design.md` を実装へ移すときの置き場所と境界を定義する。設計判断の一次情報は `doc/development-design.md` とし、この文書は日々の実装で迷わないための作業ガイドとする。
+本書は現在のディレクトリ構成と依存境界を示します。過去の移植Phaseではなく、今後の変更で守る実装規約です。現在の機能範囲は[実装状況](./implementation-status.md)、データ設計は[開発設計書](./development-design.md)を参照してください。
 
 ## 1. ディレクトリ責務
 
 ### `src/routes/`
 
-TanStack Router のRoute定義とページ単位の合成を置く。
+TanStack RouterのRoute、loader、Server Function、ページ単位の合成を置きます。
 
-- URL、loader、Server Function呼び出し、ページレイアウトを担当する
-- DB、Drizzle、環境変数、Cookieの詳細を直接扱わない
-- 複雑な表示やフォームは `src/features/*` へ切り出す
-- RouteからDBを直接操作せず、Server FunctionまたはUse Caseを経由する
+- URLとsearch paramsを検証する。
+- DBへ直接アクセスせず、Use Caseを呼ぶServer Functionを境界にする。
+- 利用者向けには汎用エラーを返し、内部例外やstack traceを公開しない。
+- ページ固有の小規模な状態はRoute内に置き、再利用する表示は `features` や `components` へ切り出す。
 
-### `src/features/`
+口コミ投稿画面は現時点でRoute内にあります。分割する場合も、入力SchemaとServer Functionの境界を変えずに行います。
 
-ユーザーが触る機能ごとのUI、hooks、画面用の整形処理を置く。
+### `src/features/stores/`
 
-| ディレクトリ | 責務 |
-|---|---|
-| `features/auth/` | テストユーザー選択、ログイン状態表示、ログアウトUI |
-| `features/stores/` | 店舗一覧、検索、店舗詳細、店舗カード |
-| `features/reviews/` | 口コミ一覧、口コミ投稿フォーム、評価入力、質問回答UI |
-| `features/profile/` | 自分の情報、投稿履歴 |
-| `features/organizations/` | 組織ダッシュボード、管理店舗、店舗別評価 |
+現在の主要featureです。
 
-`features` は画面に近い層なので、DBテーブル定義や認可判定を直接importしない。必要なデータは `src/schemas/` のResponse型、またはRoute/Server Functionから渡されたDTOとして扱う。
+- 検索フォーム
+- 店舗カードと店舗詳細用表示
+- 共通口コミカード
+- `localStorage` を使う「気になる」保存
+- 保存結果のフィードバック
+
+DBテーブルやサーバー専用モジュールを直接importしません。
 
 ### `src/components/`
 
-複数featureで使う見た目だけの共通部品を置く。
-
-- Button、Input、Dialog、EmptyStateなどの汎用UI
-- ドメイン固有の知識を持たせない
-- StoreやReviewの業務判断を含む部品は `features/*` 側に置く
+Button、Dialog、Pagination、Icon、共通SiteShell等、複数画面で使う表示部品を置きます。認可やDB更新などの業務判断は持たせません。
 
 ### `src/schemas/`
 
-Zod Schemaと、そこから推論されるRequest/Response型を置く。
+ブラウザとサーバーで共有するZod Schema、許可値、Request型を置きます。
 
-- 外部入力、Server Function入力、画面へ返すResponseを検証する
-- DB Entityをそのまま画面へ返さず、Response Schemaへ変換する
-- `src/db/schema` に依存しない
-- ブラウザでも使う可能性があるため、秘密情報やサーバー専用APIをimportしない
+- 検索条件、口コミ投稿、リアクション等の外部入力を検証する。
+- 許可リスト、型、文字数、配列件数、重複をここで制限する。
+- DB接続、秘密情報、Node.js専用処理へ依存しない。
 
 ### `src/server/use-cases/`
 
-アプリケーションの業務処理を置く。
+検索、公開店舗取得、口コミ作成、リアクション等の業務処理を置きます。
 
-- 認証済みPrincipal、入力DTO、Repository/DBを受け取り、ユースケースを完結させる
-- Zod検証後の値を扱う
-- Authorization Policyを呼び、権限不足なら `403` 相当のエラーにする
-- Review作成など複数テーブルを更新する処理はTransaction単位で扱う
-- RouteやUIに依存しない
+- Repositoryの具体的なSQLから独立させる。
+- 入力をZodで検証する。
+- 投稿者IDや集計値をクライアントから信用しない。
+- 複数テーブルの更新はRepositoryのトランザクションへまとめる。
 
-例:
+### `src/server/repositories/`
 
-- `listStores`
-- `getStoreDetail`
-- `createReview`
-- `updateReview`
-- `listMyReviews`
-- `listOrganizationStores`
+Drizzleを使った読み取り、保存、集計を置きます。
 
-### `src/server/auth/`
+- SQLへユーザー入力を文字列連結しない。
+- 公開対象のstatusと削除状態を必ず絞り込む。
+- 公開DTOへ内部ユーザーID、Email、正確な日時、同意日時を含めない。
+- 検索、ページング、並べ替えをDB側で行う。
 
-認証、Session、Cookieに関する処理を置く。
+### `src/server/dev-review-access.ts`
 
-- `AuthAdapter` は本人確認だけを担当し、Roleや権限を返さない
-- Basic認証資格情報は環境変数から読む
-- Session Tokenは平文保存せず、DBにはハッシュのみ保存する
-- Cookieは `HttpOnly`、`SameSite=Lax` を基本とする
-
-### `src/server/authorization/`
-
-認可ポリシーを置く。
-
-- PlatformRole、OrganizationMembership、Review所有者条件を判定する
-- `ACTIVE` なMembershipだけを有効な権限として扱う
-- 「ログイン済みなら全データOK」にしない
-- 他ユーザーのReview編集、他組織データ閲覧を防ぐテストを追加する
+認証導入前の投稿・リアクションを開発環境へ限定するガードです。`NODE_ENV`、明示フラグ、localhost、DB名の一致をすべて検証します。これは本人確認や認可ではありません。
 
 ### `src/server/errors/`
 
-Server FunctionとUse Caseで共有するエラー型を置く。
-
-- `UnauthorizedError` -> 401
-- `ForbiddenError` -> 403
-- `NotFoundError` -> 404
-- `ConflictError` -> 409
-- 内部エラー詳細やstack traceをユーザー向けResponseへ含めない
+Use CaseとRouteで共有する業務エラーを置きます。重複投稿等の想定可能な失敗だけを識別し、予期しない内部エラーは公開レスポンスへ展開しません。
 
 ### `src/db/schema/`
 
-Drizzleのテーブル定義、relation、DB制約を置く。
+Drizzleテーブル、外部キー、一意制約、CHECK制約、Indexを置きます。
 
-- テーブル名とカラム名は `snake_case`
-- 単独主キーはPostgreSQL 18の `uuidv7()` をDB側defaultにする
-- Unique制約、CHECK制約、部分Indexをここで表現する
-- 認可をクライアント側チェックだけに依存しない
+- 単独主キーはPostgreSQL 18の `uuidv7()` をDB側defaultにする。
+- 1ユーザー・1店舗、評価1〜5、口コミ30〜300文字等をDBでも守る。
+- 公開済みのMigrationを直接書き換えず、Forward-onlyで追加する。
 
-### `src/db/migrations/`
+### `src/db/`
 
-Drizzle Kitが生成するMigrationを置く。適用済みMigrationは変更せず、Forward-onlyで運用する。
+- `client.ts`: DB接続
+- `seed.ts`: 開発用初期データ
+- `check-dev-db.ts`: 接続先の安全確認
+- `prepare-review-flow.ts`: 旧ダミー口コミの確認・削除
+- `reset-test-reviews.ts`: 固定テストユーザーの口コミだけを確認・削除
+- `migrations/`: Drizzle Migration
 
-### `src/db/client.ts`
-
-DB接続とDrizzle Clientを置く。`DATABASE_URL` は `src/server/env.ts` の検証を通す。
-
-### `src/db/seed.ts`
-
-開発・テスト用データ投入を置く。本番環境で実行できないようにする。
-
-### `src/lib/`
-
-ドメインに依存しない小さな共通処理を置く。
-
-- 日付や文字列などの汎用関数
-- アプリ情報などの静的メタデータ
-- DB、認証、画面状態に依存する処理は置かない
+DBを変更するスクリプトは、対象DBと明示フラグを確認し、既定では読み取り専用または確認モードにします。
 
 ## 2. 依存方向
 
-基本の依存方向は次の通り。
-
 ```text
-routes -> features -> schemas/lib
-routes -> server functions -> use-cases -> db
-use-cases -> authorization/auth/errors/schemas
+routes / components / features
+              ↓
+           schemas / lib
+
+routes の Server Function
+              ↓
+          use-cases
+              ↓
+         repositories
+              ↓
+          db / Drizzle
 ```
 
 禁止する依存:
 
-- `features/*` -> `db/*`
-- `components/*` -> `server/*` / `db/*`
-- `schemas/*` -> `db/*` / `server/*`
-- `routes/*` -> `db/*` の直接操作
+- `features/*` または `components/*` から `db/*` を直接importする。
+- `schemas/*` から `server/*` や秘密情報へ依存する。
+- RouteのUIコードからRepositoryやDrizzleを直接呼ぶ。
+- RepositoryのDB Entityをそのまま公開レスポンスとして返す。
 
-## 3. `src/server/use-cases`, `src/schemas`, `src/db/schema` の使い分け
+## 3. 変更時の確認
 
-| 場所 | 置くもの | 置かないもの |
-|---|---|---|
-| `src/schemas/` | Zod Schema、Request/Response型、入力境界の検証 | DB接続、Cookie、権限判定 |
-| `src/server/use-cases/` | 業務処理、Transaction、認可呼び出し、EntityからResponseへの変換 | JSX、DOM、Route固有処理 |
-| `src/db/schema/` | Drizzleテーブル、relation、DB制約、Index | 画面表示用ラベル、Use Case固有の分岐 |
+### UI・表示
 
-例: 口コミ投稿
+- PC、スマートフォン、キーボード、フォーカス表示を確認する。
+- 長い店舗名、0件、未評価、長い口コミで崩れないことを確認する。
+- `dangerouslySetInnerHTML` や未サニタイズHTMLを使わない。
+- favicon、画像、manifest等の静的アセットは `public/`、バンドルする画面画像は `img/` に置く。
 
-```text
-Review投稿フォーム
-  -> createReviewInputSchema で入力検証
-  -> createReview Use Case で認可・Transaction・整合性検証
-  -> reviews / review_answers / review_ratings のDB制約で最終防御
-  -> reviewResponseSchema の形で画面へ返す
+### 検索・公開処理
+
+- 未知のsort、範囲外の評価・ページ、不正UUIDを拒否または安全な既定値へ戻す。
+- 非公開、非表示、削除済みデータが一覧・詳細・保存一覧へ混入しないことを確認する。
+- 同順位の並び順を固定し、ページ間の重複・欠落を防ぐ。
+
+### 投稿・リアクション
+
+- UIの検証だけに依存せず、Schema、Use Case、DB制約で防御する。
+- 開発環境ガードをServer Functionより内側のUse Caseでも確認する。
+- 他のUser ID、総合点、同意日時をリクエストから受け取らない。
+- 失敗時に部分データを残さず、内部詳細を利用者へ返さない。
+
+### DB・依存関係
+
+- Migrationを空のPostgreSQL 18へ適用する。
+- seedを2回実行して重複しないことを確認する。
+- `pnpm db:generate` 後に意図しない差分がないことを確認する。
+- 新しい依存関係は必要性、公開元、更新状況、install script、ライセンス、既知脆弱性を確認してから追加する。
+
+## 4. 自動検証
+
+```bash
+pnpm run test
+pnpm run lint
+pnpm run format
+pnpm run typecheck
+pnpm run build
 ```
 
-## 4. 旧 `legacy/index.html` から移植する範囲
+CIは上記に加え、Migration、seed再実行、Drizzleスキーマ差分、`pnpm audit --audit-level high` を確認します。E2Eテストは未導入なので、主要動線は手動でも確認します。
 
-旧プロトタイプは参考実装として残し、DOM操作やlocalStorage中心の構造はそのまま移植しない。
+## 5. 今後の大きな変更
 
-### 移植するもの
-
-- 店舗一覧の情報設計
-- 評価軸の表示
-- 重視項目チップによる並び替え
-- 店舗カードの展開詳細
-- 口コミ一覧の見せ方
-- 勤続期間に応じた参考度表示
-- 求職者が最後に判断する「気になる / 見送る」の考え方
-
-### そのまま移植しないもの
-
-- `innerHTML` でHTML文字列を組み立てる実装
-- グローバル変数に全状態を持つ実装
-- `localStorage` を永続データの正とする設計
-- `app-data` に全データを詰め込む形式
-- DOMの `addEventListener` に画面ロジックを集中させる構造
-
-Reactでは、表示はComponent、状態は必要最小限のhook、永続データはServer Function/Use Case経由へ移す。
-
-## 5. 移植順序
-
-### Phase 1: 読み取り専用の店舗一覧
-
-- デモデータをTypeScriptのfixtureへ移す
-- Store CardをReact Component化する
-- 評価軸と重み付き平均を純粋関数に分離する
-- チップ選択による並び替えを実装する
-- DB、認証、投稿機能はまだ入れない
-
-### Phase 2: 店舗詳細と口コミ一覧
-
-- 店舗カード展開または詳細Routeを実装する
-- 評価内訳、事実情報、口コミ一覧を表示する
-- 公開表示にUser ID、Email、表示名を含めないResponse形を先に固定する
-
-### Phase 3: 口コミ投稿フォーム
-
-- ReviewForm / Question / RatingDimensionの型とZod Schemaを作る
-- Step形式の投稿UIを作る
-- 投稿Use CaseはDB導入後に接続する
-
-### Phase 4: Server Function / DB接続
-
-- Drizzle SchemaとMigrationを作る
-- Store一覧、Store詳細、Review一覧をServer Function化する
-- Zod検証、認可、Use Case、DB制約を通す
-
-### Phase 5: 認証・認可
-
-- Basic認証とSessionを実装する
-- Authorization Policyを実装する
-- 他ユーザーや他組織のデータへアクセスできないテストを追加する
-
-## 6. セキュリティ上の注意
-
-- 外部入力は必ずZodで検証する
-- LLM出力やlegacyデータも信頼済みとして扱わない
-- 公開ResponseにUser ID、Email、表示名を含めない
-- 認証済みであることと権限があることを分ける
-- Basic認証のユーザー名・パスワード、Session Secret、DB URLをコミットしない
-- 詳細な内部エラーやstack traceを画面/API Responseへ返さない
-- `innerHTML` / `dangerouslySetInnerHTML` は原則使わない
-
-## 7. 次のPR候補
-
-次のPRでは、`feature/store-list-ui` のようなブランチを切り、Phase 1だけを実装するのがよい。
-
-完了条件:
-
-- 旧プロトタイプ相当の店舗一覧がReactで表示される
-- デモデータとスコア計算が型付きで分離されている
-- `pnpm run lint`
-- `pnpm run format`
-- `pnpm run typecheck`
-- `pnpm run test`
-- `pnpm run build`
+認証、Session、口コミ編集・削除、組織管理、AI機能は未実装です。これらを追加するときは既存の開発用固定Userを一般公開へ流用せず、認証と認可を分け、他ユーザー・他組織のデータへアクセスできないテストを先に定義します。
