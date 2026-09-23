@@ -18,6 +18,7 @@ import { Route as OperatorRouteImport } from './routes/operator'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as SavedRouteImport } from './routes/saved'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as CompanyReportRouteImport } from './routes/company.report'
 import { Route as StoresIndexRouteImport } from './routes/stores.index'
 import { Route as StoresStoreIdIndexRouteImport } from './routes/stores.$storeId.index'
 import { Route as StoresStoreIdReviewsNewRouteImport } from './routes/stores.$storeId.reviews.new'
@@ -67,6 +68,11 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CompanyReportRoute = CompanyReportRouteImport.update({
+  id: '/report',
+  path: '/report',
+  getParentRoute: () => CompanyRoute,
+} as any)
 const StoresIndexRoute = StoresIndexRouteImport.update({
   id: '/stores/',
   path: '/stores/',
@@ -85,7 +91,7 @@ const StoresStoreIdReviewsNewRoute = StoresStoreIdReviewsNewRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/company': typeof CompanyRoute
+  '/company': typeof CompanyRouteWithChildren
   '/contact': typeof ContactRoute
   '/demo': typeof DemoRoute
   '/guidelines': typeof GuidelinesRoute
@@ -93,13 +99,14 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/saved': typeof SavedRoute
   '/terms': typeof TermsRoute
+  '/company/report': typeof CompanyReportRoute
   '/stores/': typeof StoresIndexRoute
   '/stores/$storeId/': typeof StoresStoreIdIndexRoute
   '/stores/$storeId/reviews/new': typeof StoresStoreIdReviewsNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/company': typeof CompanyRoute
+  '/company': typeof CompanyRouteWithChildren
   '/contact': typeof ContactRoute
   '/demo': typeof DemoRoute
   '/guidelines': typeof GuidelinesRoute
@@ -107,6 +114,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/saved': typeof SavedRoute
   '/terms': typeof TermsRoute
+  '/company/report': typeof CompanyReportRoute
   '/stores': typeof StoresIndexRoute
   '/stores/$storeId': typeof StoresStoreIdIndexRoute
   '/stores/$storeId/reviews/new': typeof StoresStoreIdReviewsNewRoute
@@ -114,7 +122,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/company': typeof CompanyRoute
+  '/company': typeof CompanyRouteWithChildren
   '/contact': typeof ContactRoute
   '/demo': typeof DemoRoute
   '/guidelines': typeof GuidelinesRoute
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/saved': typeof SavedRoute
   '/terms': typeof TermsRoute
+  '/company/report': typeof CompanyReportRoute
   '/stores/': typeof StoresIndexRoute
   '/stores/$storeId/': typeof StoresStoreIdIndexRoute
   '/stores/$storeId/reviews/new': typeof StoresStoreIdReviewsNewRoute
@@ -138,6 +147,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/saved'
     | '/terms'
+    | '/company/report'
     | '/stores/'
     | '/stores/$storeId/'
     | '/stores/$storeId/reviews/new'
@@ -152,6 +162,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/saved'
     | '/terms'
+    | '/company/report'
     | '/stores'
     | '/stores/$storeId'
     | '/stores/$storeId/reviews/new'
@@ -166,6 +177,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/saved'
     | '/terms'
+    | '/company/report'
     | '/stores/'
     | '/stores/$storeId/'
     | '/stores/$storeId/reviews/new'
@@ -173,7 +185,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  CompanyRoute: typeof CompanyRoute
+  CompanyRoute: typeof CompanyRouteWithChildren
   ContactRoute: typeof ContactRoute
   DemoRoute: typeof DemoRoute
   GuidelinesRoute: typeof GuidelinesRoute
@@ -251,6 +263,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/company/report': {
+      id: '/company/report'
+      path: '/report'
+      fullPath: '/company/report'
+      preLoaderRoute: typeof CompanyReportRouteImport
+      parentRoute: typeof CompanyRoute
+    }
     '/stores/': {
       id: '/stores/'
       path: '/stores'
@@ -275,9 +294,20 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface CompanyRouteChildren {
+  CompanyReportRoute: typeof CompanyReportRoute
+}
+
+const CompanyRouteChildren: CompanyRouteChildren = {
+  CompanyReportRoute: CompanyReportRoute,
+}
+
+const CompanyRouteWithChildren =
+  CompanyRoute._addFileChildren(CompanyRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  CompanyRoute: CompanyRoute,
+  CompanyRoute: CompanyRouteWithChildren,
   ContactRoute: ContactRoute,
   DemoRoute: DemoRoute,
   GuidelinesRoute: GuidelinesRoute,
