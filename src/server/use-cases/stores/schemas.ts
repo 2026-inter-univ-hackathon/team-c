@@ -24,6 +24,7 @@ export const publicStoreReviewsInputSchema = publicStoreIdInputSchema
   .extend({
     limit: optionalNumberInput,
     offset: optionalNumberInput,
+    viewerUserId: z.uuid().nullable().optional(),
   })
   .strip();
 

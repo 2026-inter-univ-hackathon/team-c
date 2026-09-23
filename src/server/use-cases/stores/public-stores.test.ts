@@ -55,7 +55,7 @@ describe("public store use cases", () => {
     expect(dependencies.listPublicReviewsByStoreId).toHaveBeenCalledWith(
       db,
       storeId,
-      { limit: 3, offset: 1 },
+      { limit: 3, offset: 1, viewerUserId: null },
     );
   });
 });

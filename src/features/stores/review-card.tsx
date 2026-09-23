@@ -9,6 +9,8 @@ import {
   coarseLabels,
   type PublicAuthorAttributes,
 } from "../../lib/review-visibility";
+import type { ReviewReactionType } from "../../schemas/review-reactions";
+import type { PublicReviewReaction } from "../../server/repositories";
 
 type CardReview = Pick<
   CreateReviewInput,
@@ -18,7 +20,12 @@ type CardReview = Pick<
   | "recommendation"
   | "ratings"
   | "summary"
-> & { author: PublicAuthorAttributes; publishedAt?: string };
+> & {
+  id?: string;
+  author: PublicAuthorAttributes;
+  publishedAt?: string;
+  reactions?: PublicReviewReaction[];
+};
 
 function AuthorLine({ author }: { author: PublicAuthorAttributes }) {
   if (author.detail === "COARSE")
@@ -45,9 +52,17 @@ function AuthorLine({ author }: { author: PublicAuthorAttributes }) {
 export function ReviewCard({
   review,
   preview = false,
+  onReactionToggle,
+  pendingReactionKey,
 }: {
   review: CardReview;
   preview?: boolean;
+  onReactionToggle?: (
+    reviewId: string,
+    reactionType: ReviewReactionType,
+    reacted: boolean,
+  ) => void | Promise<void>;
+  pendingReactionKey?: string | null;
 }) {
   return (
     <article
@@ -86,6 +101,33 @@ export function ReviewCard({
         店長の関与: {labels.manager[review.managerPresence]} / おすすめ度:{" "}
         {labels.recommendation[review.recommendation]}
       </p>
+      {review.id && review.reactions?.length ? (
+        <div className="review-reactions" aria-label="口コミへのリアクション">
+          {review.reactions.map((reaction) => {
+            const key = `${review.id}:${reaction.type}`;
+            return (
+              <button
+                key={reaction.type}
+                type="button"
+                aria-pressed={reaction.reacted}
+                disabled={!onReactionToggle || pendingReactionKey === key}
+                onClick={() =>
+                  void onReactionToggle?.(
+                    review.id!,
+                    reaction.type,
+                    !reaction.reacted,
+                  )
+                }
+              >
+                <span>{reaction.label}</span>
+                <b aria-label={`${reaction.label} ${reaction.count}件`}>
+                  {reaction.count}
+                </b>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
     </article>
   );
 }

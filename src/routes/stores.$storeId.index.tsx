@@ -1,6 +1,7 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
+import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { z } from "zod";
-import { getStoreDetail } from "../server/store-functions";
+import { getStoreDetail, reactToReview } from "../server/store-functions";
 import { defaultSearch } from "../schemas/store-search";
 import {
   categoryImage,
@@ -13,6 +14,7 @@ import {
 import { ButtonLink } from "../components/button";
 import { ReviewCard } from "../features/stores/review-card";
 import { ratingCodes, type CreateReviewInput } from "../schemas/review-flow";
+import type { ReviewReactionType } from "../schemas/review-reactions";
 import { Icon } from "../components/icon";
 import { Pagination } from "../components/pagination";
 import { coarseAttributesNotice } from "../lib/review-visibility";
@@ -32,6 +34,30 @@ export const Route = createFileRoute("/stores/$storeId/")({
 function DetailPage() {
   const { store, reviews, page, pageCount } = Route.useLoaderData();
   const navigate = Route.useNavigate();
+  const router = useRouter();
+  const [pendingReactionKey, setPendingReactionKey] = useState<string | null>(
+    null,
+  );
+  async function handleReactionToggle(
+    reviewId: string,
+    reactionType: ReviewReactionType,
+    reacted: boolean,
+  ) {
+    const key = `${reviewId}:${reactionType}`;
+    setPendingReactionKey(key);
+    try {
+      const result = await reactToReview({
+        data: { reviewId, reactionType, reacted },
+      });
+      if (!result.ok) {
+        window.alert(result.message);
+        return;
+      }
+      await router.invalidate();
+    } finally {
+      setPendingReactionKey(null);
+    }
+  }
   if (!store)
     return (
       <main id="main" className="container page-section">
@@ -179,6 +205,7 @@ function DetailPage() {
                 <ReviewCard
                   key={review.id}
                   review={{
+                    id: review.id,
                     author: review.author,
                     atmosphereTags: review.atmosphereTags,
                     staffTags: review.staffTags,
@@ -186,6 +213,7 @@ function DetailPage() {
                     recommendation: review.recommendation,
                     summary: review.summary,
                     publishedAt: review.publishedAt,
+                    reactions: review.reactions,
                     ratings: Object.fromEntries(
                       ratingCodes.map((code) => [
                         code,
@@ -195,6 +223,8 @@ function DetailPage() {
                       ]),
                     ) as CreateReviewInput["ratings"],
                   }}
+                  onReactionToggle={handleReactionToggle}
+                  pendingReactionKey={pendingReactionKey}
                 />
               ))
             ) : (

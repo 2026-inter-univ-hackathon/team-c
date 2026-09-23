@@ -13,6 +13,7 @@ import {
   categories,
   ratingDimensions,
   reviewRatings,
+  reviewReactions,
   reviews,
   storeCategories,
   stores,
@@ -22,6 +23,11 @@ import {
   ratingCodes,
   type CreateReviewInput,
 } from "../../schemas/review-flow";
+import {
+  reviewReactionLabels,
+  reviewReactionTypes,
+  type ReviewReactionType,
+} from "../../schemas/review-reactions";
 import { formatFuzzyMonth } from "../../lib/fuzzy-date";
 import {
   hasDetailedAttributes,
@@ -33,6 +39,7 @@ import type {
   PublicListOptions,
   PublicReview,
   PublicReviewRating,
+  PublicReviewReaction,
   PublicStoreDetail,
   PublicStoreSummary,
 } from "./types";
@@ -211,6 +218,15 @@ export async function getPublicStoreById(
   };
 }
 
+function defaultReactionSummary(): PublicReviewReaction[] {
+  return reviewReactionTypes.map((type) => ({
+    type,
+    label: reviewReactionLabels[type],
+    count: 0,
+    reacted: false,
+  }));
+}
+
 async function ratingsFor(
   db: Db,
   reviewIds: string[],
@@ -249,12 +265,48 @@ async function ratingsFor(
   return map;
 }
 
+async function reactionsFor(
+  db: Db,
+  reviewIds: string[],
+  viewerUserId: string | null,
+): Promise<Map<string, PublicReviewReaction[]>> {
+  const map = new Map(
+    reviewIds.map((reviewId) => [reviewId, defaultReactionSummary()]),
+  );
+  if (!reviewIds.length) return map;
+  const rows = await db
+    .select({
+      reviewId: reviewReactions.reviewId,
+      reactionType: reviewReactions.reactionType,
+      count: sql<number>`count(*)::int`.mapWith(Number),
+      reacted: viewerUserId
+        ? sql<boolean>`bool_or(${reviewReactions.userId} = ${viewerUserId})`.mapWith(
+            Boolean,
+          )
+        : sql<boolean>`false`.mapWith(Boolean),
+    })
+    .from(reviewReactions)
+    .where(inArray(reviewReactions.reviewId, reviewIds))
+    .groupBy(reviewReactions.reviewId, reviewReactions.reactionType);
+  for (const row of rows) {
+    const reactions = map.get(row.reviewId);
+    const reaction = reactions?.find(
+      (item) => item.type === (row.reactionType as ReviewReactionType),
+    );
+    if (reaction) {
+      reaction.count = row.count;
+      reaction.reacted = row.reacted;
+    }
+  }
+  return map;
+}
+
 export async function listPublicReviewsByStoreId(
   db: Db,
   storeId: string,
   options?: PublicListOptions,
 ): Promise<PublicReview[]> {
-  const { limit, offset } = normalizePublicListOptions(options);
+  const { limit, offset, viewerUserId } = normalizePublicListOptions(options);
   // Count and rows must share one database snapshot. Otherwise a review could
   // be hidden between separate queries and expose detailed attributes below
   // the anonymity threshold.
@@ -287,10 +339,11 @@ export async function listPublicReviewsByStoreId(
     .orderBy(desc(reviews.publishedAt), desc(reviews.id))
     .limit(limit)
     .offset(offset);
-  const ratings = await ratingsFor(
-    db,
-    rows.map((row) => row.id),
-  );
+  const reviewIds = rows.map((row) => row.id);
+  const [ratings, reactions] = await Promise.all([
+    ratingsFor(db, reviewIds),
+    reactionsFor(db, reviewIds, viewerUserId),
+  ]);
   return rows.map((row) => {
     const detailed = hasDetailedAttributes(row.visibleCount);
     const values = ratings.get(row.id) ?? [];
@@ -320,6 +373,7 @@ export async function listPublicReviewsByStoreId(
         ? fuzzyPublishedAt(row.publishedAt!)
         : formatFuzzyMonth(row.publishedAt!),
       ratings: values.sort((a, b) => a.displayOrder - b.displayOrder),
+      reactions: reactions.get(row.id) ?? defaultReactionSummary(),
       overallScore:
         values.length === 4
           ? Object.values(scoreInput).reduce((sum, value) => sum + value, 0) / 4

@@ -3,12 +3,17 @@ import { z } from "zod";
 import { storeSearchSchema } from "../schemas/store-search";
 import { withDb } from "./db";
 import {
+  DEV_REVIEW_USER_ID,
+  isDevReviewPostingEnabled,
+} from "./dev-review-access";
+import {
   searchStoresUseCase,
   storeFiltersUseCase,
 } from "./use-cases/stores/search-stores";
 import {
   getPublicStoreDetailUseCase,
   listPublicStoreReviewsUseCase,
+  setReviewReactionUseCase,
 } from "./use-cases";
 
 async function publicRead<T>(operation: string, callback: () => Promise<T>) {
@@ -50,6 +55,9 @@ export const getStoreDetail = createServerFn({ method: "GET" })
               storeId: data.storeId,
               limit: 10,
               offset: (page - 1) * 10,
+              viewerUserId: isDevReviewPostingEnabled(process.env)
+                ? DEV_REVIEW_USER_ID
+                : null,
             })
           : [];
         return {
@@ -61,3 +69,29 @@ export const getStoreDetail = createServerFn({ method: "GET" })
       }),
     ),
   );
+
+const reactionSchema = z.strictObject({
+  reviewId: z.uuid(),
+  reactionType: z.enum(["HELPFUL", "THANKS", "USEFUL"]),
+  reacted: z.boolean(),
+});
+
+export const reactToReview = createServerFn({ method: "POST" })
+  .validator((input: unknown) => reactionSchema.parse(input))
+  .handler(async ({ data }) => {
+    if (!isDevReviewPostingEnabled(process.env)) {
+      return {
+        ok: false as const,
+        message: "リアクションは開発環境でのみ利用できます",
+      };
+    }
+    try {
+      return await withDb((db) => setReviewReactionUseCase(db, data));
+    } catch {
+      console.error("review_reaction_failed");
+      return {
+        ok: false as const,
+        message: "リアクションを保存できませんでした",
+      };
+    }
+  });

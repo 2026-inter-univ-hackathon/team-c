@@ -64,9 +64,11 @@ export async function listPublicStoreReviewsUseCase(
   input: PublicStoreReviewsInput,
   dependencies: PublicStoreUseCaseDependencies = defaultDependencies,
 ): Promise<PublicReview[]> {
-  const { storeId, limit, offset } = publicStoreReviewsInputSchema.parse(input);
+  const { storeId, limit, offset, viewerUserId } =
+    publicStoreReviewsInputSchema.parse(input);
   return dependencies.listPublicReviewsByStoreId(db, storeId, {
     limit,
     offset,
+    viewerUserId: viewerUserId ?? null,
   });
 }

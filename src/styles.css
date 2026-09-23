@@ -1335,6 +1335,42 @@ meter::-moz-meter-bar {
   margin-left: 10px;
   color: var(--brown);
 }
+
+.review-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.review-reactions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  background: #fffaf6;
+  color: var(--brown);
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.review-reactions button:hover:not(:disabled),
+.review-reactions button[aria-pressed="true"] {
+  border-color: #dc6b35;
+  background: #fff0e7;
+  color: #9a3b13;
+}
+.review-reactions b {
+  min-width: 1.6em;
+  border-radius: 999px;
+  background: white;
+  padding: 2px 6px;
+  color: inherit;
+  text-align: center;
+}
+
 .review-answers {
   margin-top: 20px;
   border-top: 1px solid var(--line);
@@ -1860,6 +1896,15 @@ meter::-moz-meter-bar {
   .review-ratings > span {
     padding: 6px 8px;
     font-size: 9px;
+  }
+
+  .review-reactions {
+    gap: 6px;
+  }
+  .review-reactions button {
+    min-height: 32px;
+    padding: 6px 8px;
+    font-size: 10px;
   }
   .review-answers summary {
     font-size: 11px;
