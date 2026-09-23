@@ -10,12 +10,15 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CompanyRouteImport } from './routes/company'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as DemoRouteImport } from './routes/demo'
 import { Route as GuidelinesRouteImport } from './routes/guidelines'
 import { Route as OperatorRouteImport } from './routes/operator'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as SavedRouteImport } from './routes/saved'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as CompanyReportRouteImport } from './routes/company.report'
 import { Route as StoresIndexRouteImport } from './routes/stores.index'
 import { Route as StoresStoreIdIndexRouteImport } from './routes/stores.$storeId.index'
 import { Route as StoresStoreIdReviewsNewRouteImport } from './routes/stores.$storeId.reviews.new'
@@ -25,9 +28,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CompanyRoute = CompanyRouteImport.update({
+  id: '/company',
+  path: '/company',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ContactRoute = ContactRouteImport.update({
   id: '/contact',
   path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoRoute = DemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GuidelinesRoute = GuidelinesRouteImport.update({
@@ -55,6 +68,11 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CompanyReportRoute = CompanyReportRouteImport.update({
+  id: '/report',
+  path: '/report',
+  getParentRoute: () => CompanyRoute,
+} as any)
 const StoresIndexRoute = StoresIndexRouteImport.update({
   id: '/stores/',
   path: '/stores/',
@@ -73,24 +91,30 @@ const StoresStoreIdReviewsNewRoute = StoresStoreIdReviewsNewRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/company': typeof CompanyRouteWithChildren
   '/contact': typeof ContactRoute
+  '/demo': typeof DemoRoute
   '/guidelines': typeof GuidelinesRoute
   '/operator': typeof OperatorRoute
   '/privacy': typeof PrivacyRoute
   '/saved': typeof SavedRoute
   '/terms': typeof TermsRoute
+  '/company/report': typeof CompanyReportRoute
   '/stores/': typeof StoresIndexRoute
   '/stores/$storeId/': typeof StoresStoreIdIndexRoute
   '/stores/$storeId/reviews/new': typeof StoresStoreIdReviewsNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/company': typeof CompanyRouteWithChildren
   '/contact': typeof ContactRoute
+  '/demo': typeof DemoRoute
   '/guidelines': typeof GuidelinesRoute
   '/operator': typeof OperatorRoute
   '/privacy': typeof PrivacyRoute
   '/saved': typeof SavedRoute
   '/terms': typeof TermsRoute
+  '/company/report': typeof CompanyReportRoute
   '/stores': typeof StoresIndexRoute
   '/stores/$storeId': typeof StoresStoreIdIndexRoute
   '/stores/$storeId/reviews/new': typeof StoresStoreIdReviewsNewRoute
@@ -98,12 +122,15 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/company': typeof CompanyRouteWithChildren
   '/contact': typeof ContactRoute
+  '/demo': typeof DemoRoute
   '/guidelines': typeof GuidelinesRoute
   '/operator': typeof OperatorRoute
   '/privacy': typeof PrivacyRoute
   '/saved': typeof SavedRoute
   '/terms': typeof TermsRoute
+  '/company/report': typeof CompanyReportRoute
   '/stores/': typeof StoresIndexRoute
   '/stores/$storeId/': typeof StoresStoreIdIndexRoute
   '/stores/$storeId/reviews/new': typeof StoresStoreIdReviewsNewRoute
@@ -112,36 +139,45 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/company'
     | '/contact'
+    | '/demo'
     | '/guidelines'
     | '/operator'
     | '/privacy'
     | '/saved'
     | '/terms'
+    | '/company/report'
     | '/stores/'
     | '/stores/$storeId/'
     | '/stores/$storeId/reviews/new'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/company'
     | '/contact'
+    | '/demo'
     | '/guidelines'
     | '/operator'
     | '/privacy'
     | '/saved'
     | '/terms'
+    | '/company/report'
     | '/stores'
     | '/stores/$storeId'
     | '/stores/$storeId/reviews/new'
   id:
     | '__root__'
     | '/'
+    | '/company'
     | '/contact'
+    | '/demo'
     | '/guidelines'
     | '/operator'
     | '/privacy'
     | '/saved'
     | '/terms'
+    | '/company/report'
     | '/stores/'
     | '/stores/$storeId/'
     | '/stores/$storeId/reviews/new'
@@ -149,7 +185,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CompanyRoute: typeof CompanyRouteWithChildren
   ContactRoute: typeof ContactRoute
+  DemoRoute: typeof DemoRoute
   GuidelinesRoute: typeof GuidelinesRoute
   OperatorRoute: typeof OperatorRoute
   PrivacyRoute: typeof PrivacyRoute
@@ -169,11 +207,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/company': {
+      id: '/company'
+      path: '/company'
+      fullPath: '/company'
+      preLoaderRoute: typeof CompanyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/contact': {
       id: '/contact'
       path: '/contact'
       fullPath: '/contact'
       preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo': {
+      id: '/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof DemoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/guidelines': {
@@ -211,6 +263,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/company/report': {
+      id: '/company/report'
+      path: '/report'
+      fullPath: '/company/report'
+      preLoaderRoute: typeof CompanyReportRouteImport
+      parentRoute: typeof CompanyRoute
+    }
     '/stores/': {
       id: '/stores/'
       path: '/stores'
@@ -235,9 +294,22 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface CompanyRouteChildren {
+  CompanyReportRoute: typeof CompanyReportRoute
+}
+
+const CompanyRouteChildren: CompanyRouteChildren = {
+  CompanyReportRoute: CompanyReportRoute,
+}
+
+const CompanyRouteWithChildren =
+  CompanyRoute._addFileChildren(CompanyRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CompanyRoute: CompanyRouteWithChildren,
   ContactRoute: ContactRoute,
+  DemoRoute: DemoRoute,
   GuidelinesRoute: GuidelinesRoute,
   OperatorRoute: OperatorRoute,
   PrivacyRoute: PrivacyRoute,
