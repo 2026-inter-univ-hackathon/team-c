@@ -45,6 +45,13 @@ const titles = [
   "生の声",
   "公開プレビュー・同意",
 ] as const;
+const summaryHints = [
+  "職場の雰囲気",
+  "人間関係",
+  "忙しさ",
+  "シフト",
+  "研修・サポート",
+] as const;
 type Draft = Omit<
   CreateReviewInput,
   | "storeId"
@@ -682,26 +689,58 @@ function ReviewPage() {
               </>
             )}
             {step === 3 && (
-              <label className="block font-semibold">
-                <RequiredLabel>
-                  応募前の自分にアドバイスするなら？
-                </RequiredLabel>
+              <div className="review-writing-field">
+                <label htmlFor="review-summary">
+                  <RequiredLabel>
+                    この職場で働いて感じたことを教えてください
+                  </RequiredLabel>
+                </label>
+                <p
+                  id="review-summary-description"
+                  className="review-writing-description"
+                >
+                  職場の雰囲気、人間関係、忙しさ、研修・サポート、シフトの入りやすさなど、実際に働いて分かったことを自由に書いてください。
+                </p>
+                <div id="review-summary-hints" className="review-writing-hints">
+                  <span className="review-writing-hints-title">
+                    書き方のヒント
+                  </span>
+                  <ul className="review-writing-hint-list">
+                    {summaryHints.map((hint) => (
+                      <li key={hint}>{hint}</li>
+                    ))}
+                  </ul>
+                </div>
                 <textarea
+                  id="review-summary"
                   value={draft.summary}
                   onChange={(event) => patch({ summary: event.target.value })}
                   rows={6}
-                  className="mt-2 w-full rounded-lg border border-stone-300 p-3 font-normal"
-                  placeholder="例：ピーク時はレジと仕込みが重なりバタバタしますが、ミスをしても先輩がすぐにカバーしてくれました。テスト期間の休みも1ヶ月前なら問題なく通ります。"
+                  className="review-writing-textarea"
+                  placeholder="例：働いて感じたことを自由に入力してください"
+                  aria-describedby="review-summary-description review-summary-hints review-summary-example review-summary-count"
                 />
-                <span className="block text-right text-xs text-stone-500">
+                <span
+                  id="review-summary-count"
+                  className="review-writing-count"
+                >
                   {Array.from(draft.summary.trim()).length} / 30〜300文字
                 </span>
+                <div
+                  id="review-summary-example"
+                  className="review-writing-example"
+                >
+                  <span className="review-writing-example-label">記入例</span>
+                  <p>
+                    学生が多くて馴染みやすかったです。金曜の夜や土日はかなり忙しく、慣れるまでは大変でした。ただ、分からないことは先輩に聞きやすく、シフトも学校の予定に合わせて相談できました。
+                  </p>
+                </div>
                 {containsForbiddenWord(draft.summary) && (
                   <span className="mt-1 block text-sm text-red-800">
                     {FORBIDDEN_WORD_MESSAGE}
                   </span>
                 )}
-              </label>
+              </div>
             )}
             {step === 4 && (
               <>

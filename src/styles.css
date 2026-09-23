@@ -2210,6 +2210,93 @@ meter::-moz-meter-bar {
   flex-shrink: 0;
   accent-color: #d95b25;
 }
+.review-writing-description {
+  margin-top: 8px;
+  color: #796f68;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.review-writing-hints {
+  margin-top: 18px;
+}
+.review-writing-hints-title {
+  display: block;
+  color: #5b514b;
+  font-size: 12px;
+  font-weight: 600;
+}
+.review-writing-hint-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.review-writing-hint-list li {
+  padding: 5px 10px;
+  border: 1px solid #e8e1d9;
+  border-radius: 999px;
+  color: #5b514b;
+  background: #faf7f3;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.review-writing-textarea {
+  display: block;
+  width: 100%;
+  min-height: 168px;
+  margin-top: 18px;
+  padding: 12px;
+  resize: vertical;
+  border: 1px solid #d6d3d1;
+  border-radius: 10px;
+  color: #352a25;
+  background: white;
+  font-weight: 400;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+.review-writing-textarea::placeholder {
+  color: #9a8f87;
+}
+.review-writing-textarea:focus-visible {
+  border-color: #d95b25;
+  outline: 0;
+  box-shadow: 0 0 0 3px #d95b2526;
+}
+.review-writing-count {
+  display: block;
+  margin-top: 6px;
+  color: #796f68;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+  text-align: right;
+}
+.review-writing-example {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-left: 3px solid #e8c3ae;
+  border-radius: 0 10px 10px 0;
+  background: #faf9f6;
+}
+.review-writing-example-label {
+  display: block;
+  color: #8a5d48;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.review-writing-example p {
+  margin-top: 5px;
+  color: #796f68;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.8;
+}
 .review-page textarea {
   font-size: 14px;
   line-height: 1.9;
