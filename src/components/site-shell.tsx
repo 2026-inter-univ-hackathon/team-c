@@ -12,7 +12,7 @@ export function SiteShell() {
         <div className="container header-inner">
           <Link to="/" className="brand">
             <span className="brand-mark">
-              <Icon name="chat" size={25} />
+              <img src="/favicon.svg" alt="" />
             </span>
             バイトの<span>ホンネ</span>
             <small>働く前に、知っておこう。</small>
