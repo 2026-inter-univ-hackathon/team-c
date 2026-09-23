@@ -26,6 +26,7 @@ function DemoSelector() {
             to="/stores"
             search={defaultSearch}
             className="demo-persona-card"
+            reloadDocument
           >
             <span className="demo-persona-icon">
               <Icon name="search" size={30} />
@@ -38,7 +39,11 @@ function DemoSelector() {
             </strong>
           </Link>
 
-          <Link to="/company" className="demo-persona-card company">
+          <Link
+            to="/company"
+            className="demo-persona-card company"
+            reloadDocument
+          >
             <span className="demo-persona-icon">
               <Icon name="shield" size={30} />
             </span>

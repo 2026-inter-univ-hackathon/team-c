@@ -30,7 +30,11 @@ export function SiteShell() {
               <Icon name="heart" size={18} />
               気になる
             </Link>
-            <Link to="/demo" activeProps={{ className: "active" }}>
+            <Link
+              to="/demo"
+              activeProps={{ className: "active" }}
+              reloadDocument
+            >
               <Icon name="shield" size={18} />
               デモ切替
             </Link>
