@@ -1,6 +1,6 @@
 import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import "../styles.css";
+import stylesheetUrl from "../styles.css?url";
 import { SiteShell } from "../components/site-shell";
 
 export const Route = createRootRoute({
@@ -15,6 +15,7 @@ export const Route = createRootRoute({
       { name: "theme-color", content: "#FF6A2B" },
     ],
     links: [
+      { rel: "stylesheet", href: stylesheetUrl },
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
       {
         rel: "icon",
