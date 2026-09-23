@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
@@ -164,6 +164,100 @@ function ToggleGroup<T extends string>({
   );
 }
 
+const consentRules = [
+  {
+    title: "実体験に基づく投稿",
+    body: "ご自身が実際に働いた店舗での体験談のみを投稿してください（噂話や客目線の投稿は禁止です）。",
+  },
+  {
+    title: "個人名の記載禁止",
+    body: "店長やスタッフ個人を特定・誹謗中傷する表現、個人名の記載は固く禁じます。",
+  },
+  {
+    title: "秘密情報の保持",
+    body: "業務マニュアルや社外秘情報、インサイダーに該当する内容は投稿しないでください。",
+  },
+  {
+    title: "データの取り扱い",
+    body: "投稿内容は匿名で公開・分析データとして活用されますが、規約違反や法的要請があった場合は削除や情報開示を行う場合があります。",
+  },
+] as const;
+
+function ConsentModal({ onAgree }: { onAgree: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const [checked, setChecked] = useState(false);
+  useEffect(() => {
+    ref.current?.showModal();
+  }, []);
+  return (
+    <dialog
+      ref={ref}
+      className="fixed inset-0 z-50 m-0 h-full max-h-none w-full max-w-none items-center justify-center bg-transparent p-4 text-stone-900 backdrop:bg-stone-900/60 open:flex"
+      aria-labelledby="consent-modal-title"
+      onCancel={(event) => event.preventDefault()}
+    >
+      <div className="max-h-full w-full max-w-lg overflow-y-auto rounded-2xl border border-orange-100 bg-white p-6 sm:p-8">
+        <h2 id="consent-modal-title" className="text-xl font-bold">
+          利用規約およびプライバシーポリシーへの同意
+        </h2>
+        <p className="mt-3 text-sm text-stone-600">
+          当サービスを安心・安全にご利用いただくため、以下のルールを必ずお守りください。
+        </p>
+        <ul className="mt-4 grid gap-3 text-sm text-stone-700">
+          {consentRules.map((rule) => (
+            <li
+              key={rule.title}
+              className="rounded-lg border border-orange-100 bg-orange-50 p-3"
+            >
+              <strong className="block text-stone-900">{rule.title}</strong>
+              {rule.body}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-4 text-sm text-stone-600">
+          詳細な内容については、必ず{" "}
+          <Link
+            to="/terms"
+            target="_blank"
+            className="text-orange-700 underline"
+          >
+            利用規約全文
+          </Link>{" "}
+          および{" "}
+          <Link
+            to="/privacy"
+            target="_blank"
+            className="text-orange-700 underline"
+          >
+            プライバシーポリシー
+          </Link>{" "}
+          をご確認ください。
+        </p>
+        <label className="mt-5 flex items-start gap-3 rounded-lg border border-orange-200 p-4 text-sm">
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={(event) => setChecked(event.target.checked)}
+            className="mt-0.5"
+          />
+          <span>利用規約とプライバシーポリシーに同意する</span>
+        </label>
+        <div className="mt-6 flex justify-end">
+          <Button
+            disabled={!checked}
+            onClick={() => {
+              ref.current?.close();
+              onAgree();
+            }}
+          >
+            同意して始める
+          </Button>
+        </div>
+      </div>
+    </dialog>
+  );
+}
+
 function ReviewPage() {
   const { store, enabled } = Route.useLoaderData();
   const router = useRouter();
@@ -171,6 +265,7 @@ function ReviewPage() {
   const [draft, setDraft] = useState<Draft>(initialDraft);
   const [issues, setIssues] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [agreedToPolicy, setAgreedToPolicy] = useState(false);
   if (!store)
     return (
       <main id="main" className="container page-section">
@@ -236,7 +331,6 @@ function ReviewPage() {
         errors.push(FORBIDDEN_WORD_MESSAGE);
       if (errors.length) return errors;
     }
-    if (step === 4 && !draft.agreed) return ["ガイドラインへの同意が必要です"];
     return [];
   }
   function next() {
@@ -248,7 +342,11 @@ function ReviewPage() {
     const errors = validateStep();
     setIssues(errors);
     if (errors.length) return;
-    const input = createReviewInputSchema.safeParse({ ...draft, storeId });
+    const input = createReviewInputSchema.safeParse({
+      ...draft,
+      storeId,
+      agreed: agreedToPolicy,
+    });
     if (!input.success) {
       setIssues(input.error.issues.map((issue) => issue.message));
       return;
@@ -277,7 +375,10 @@ function ReviewPage() {
   });
   return (
     <main id="main" className="min-h-dvh bg-orange-50 px-4 py-8 text-stone-900">
-      <div className="mx-auto max-w-2xl">
+      {!agreedToPolicy && (
+        <ConsentModal onAgree={() => setAgreedToPolicy(true)} />
+      )}
+      <div className="mx-auto max-w-2xl" inert={!agreedToPolicy}>
         <Link
           to="/stores/$storeId"
           params={{ storeId: store.id }}
@@ -515,24 +616,10 @@ function ReviewPage() {
                     preview
                   />
                 )}
-                <label className="flex gap-3 rounded-lg border border-orange-200 p-4 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={draft.agreed}
-                    onChange={(event) =>
-                      patch({ agreed: event.target.checked })
-                    }
-                  />
-                  <span>
-                    <Link
-                      to="/guidelines"
-                      className="text-orange-700 underline"
-                    >
-                      投稿ガイドライン（版{GUIDELINE_VERSION}）
-                    </Link>
-                    を確認し、誹謗中傷・個人攻撃・実名記載を行っていないことに同意します。
-                  </span>
-                </label>
+                <p className="text-sm text-stone-600">
+                  ※
+                  投稿内容に個人名や誹謗中傷が含まれていないことをご確認の上、投稿してください。
+                </p>
               </>
             )}
           </div>
