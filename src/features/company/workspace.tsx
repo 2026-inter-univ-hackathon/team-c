@@ -115,7 +115,9 @@ export function CompanyWorkspace({ report = false }: { report?: boolean }) {
           <Link to="/company/report" activeProps={{ "aria-current": "page" }}>
             改善レポート
           </Link>
-          <Link to="/demo">表示切替</Link>
+          <Link to="/demo" reloadDocument>
+            表示切替
+          </Link>
         </nav>
         <header className="cw-heading">
           <div>
