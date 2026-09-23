@@ -508,3 +508,29 @@ export const reviewRatings = pgTable(
     index("review_ratings_form_id_idx").on(table.reviewFormId),
   ],
 );
+
+export const reviewReactions = pgTable(
+  "review_reactions",
+  {
+    reviewId: uuid("review_id")
+      .notNull()
+      .references(() => reviews.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    reactionType: varchar("reaction_type", { length: 30 }).notNull(),
+    createdAt,
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.reviewId, table.userId, table.reactionType],
+      name: "review_reactions_pk",
+    }),
+    check(
+      "review_reactions_type_check",
+      sql`${table.reactionType} in ('HELPFUL', 'THANKS', 'USEFUL')`,
+    ),
+    index("review_reactions_review_id_idx").on(table.reviewId),
+    index("review_reactions_user_id_idx").on(table.userId),
+  ],
+);

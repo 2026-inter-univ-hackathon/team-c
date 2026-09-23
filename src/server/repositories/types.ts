@@ -1,4 +1,5 @@
 import type { CreateReviewInput } from "../../schemas/review-flow";
+import type { ReviewReactionType } from "../../schemas/review-reactions";
 import type { PublicAuthorAttributes } from "../../lib/review-visibility";
 
 export type EmploymentStatus = CreateReviewInput["employmentStatus"];
@@ -32,6 +33,12 @@ export type PublicReviewRating = {
   displayOrder: number;
   score: number;
 };
+export type PublicReviewReaction = {
+  type: ReviewReactionType;
+  label: string;
+  count: number;
+  reacted: boolean;
+};
 export type PublicReview = {
   id: string;
   summary: string;
@@ -42,9 +49,14 @@ export type PublicReview = {
   recommendation: CreateReviewInput["recommendation"];
   publishedAt: string;
   ratings: PublicReviewRating[];
+  reactions: PublicReviewReaction[];
   overallScore: number;
 };
-export type PublicListOptions = { limit?: number; offset?: number };
+export type PublicListOptions = {
+  limit?: number;
+  offset?: number;
+  viewerUserId?: string | null;
+};
 export type NormalizedPublicListOptions = { limit: number; offset: number };
 export type ReviewFormRatingDimension = {
   id: string;
