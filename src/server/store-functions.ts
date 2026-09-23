@@ -27,7 +27,7 @@ async function publicRead<T>(operation: string, callback: () => Promise<T>) {
     );
   }
 }
-export const searchStores = createServerFn({ method: "GET" })
+export const searchStores = createServerFn({ method: "POST" })
   .validator((input: unknown) => storeSearchSchema.parse(input))
   .handler(({ data }) =>
     publicRead("search", () => withDb((db) => searchStoresUseCase(db, data))),

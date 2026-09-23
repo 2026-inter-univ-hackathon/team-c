@@ -16,6 +16,8 @@ export type StoreCardData = {
   averageRating: number | null;
   reviewCount: number;
   reviewExcerpt: string | null;
+  matchedReviewText: string | null;
+  semanticScore: number | null;
 };
 export function categoryImage(code?: string) {
   return code === "cafe"
@@ -105,6 +107,12 @@ export function StoreCard({ store }: { store: StoreCardData }) {
             "所在地の登録はありません"}
         </p>
         <Rating value={store.averageRating} count={store.reviewCount} />
+        {store.matchedReviewText && (
+          <details className="semantic-match">
+            <summary>希望に近い口コミを読む</summary>
+            <p>{store.matchedReviewText}</p>
+          </details>
+        )}
         <div className="review-excerpt">
           <Icon name="chat" size={17} />
           <p>

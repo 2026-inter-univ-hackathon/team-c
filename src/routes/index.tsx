@@ -1,5 +1,6 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { SearchForm } from "../features/stores/search-form";
+import { AtmosphereSearch } from "../features/stores/atmosphere-search";
 import { defaultSearch } from "../schemas/store-search";
 import { Icon } from "../components/icon";
 import cafe from "../../img/cafe.jpg";
@@ -56,6 +57,7 @@ function Home() {
         </div>
         <div className="container hero-search">
           <SearchForm />
+          <AtmosphereSearch />
           <div className="quick-search">
             <span>気になる業種から：</span>
             {[

@@ -12,6 +12,7 @@ import {
   LoadingState,
 } from "../features/stores/store-ui";
 import { SearchForm } from "../features/stores/search-form";
+import { AtmosphereSearch } from "../features/stores/atmosphere-search";
 import { ButtonLink } from "../components/button";
 import { Icon } from "../components/icon";
 import { Pagination } from "../components/pagination";
@@ -37,13 +38,18 @@ function StoresPage() {
     void navigate({ search: { ...search, ...patch, page: patch.page ?? 1 } });
   }
   const active = Boolean(
-    search.q || search.area || search.category || search.minRating,
+    search.q ||
+    search.area ||
+    search.category ||
+    search.minRating ||
+    search.atmosphere,
   );
   return (
     <main id="main">
       <div className="search-strip">
         <div className="container">
           <SearchForm key={search.q + "|" + search.area} search={search} />
+          <AtmosphereSearch key={search.atmosphere} search={search} />
         </div>
       </div>
       <div className="container">
@@ -144,6 +150,9 @@ function StoresPage() {
                     update({ sort: e.target.value as StoreSearch["sort"] })
                   }
                 >
+                  {search.atmosphere && (
+                    <option value="relevance">希望に近い順</option>
+                  )}
                   <option value="name">店舗名順</option>
                   <option value="rating">評価が高い順</option>
                   <option value="reviews">口コミが多い順</option>
@@ -153,6 +162,7 @@ function StoresPage() {
             {active && (
               <div className="active-filters">
                 {search.q && <span>店舗名：{search.q}</span>}
+                {search.atmosphere && <span>雰囲気：{search.atmosphere}</span>}
                 {search.area && <span>{search.area}</span>}
                 {search.category && (
                   <span>
@@ -165,12 +175,22 @@ function StoresPage() {
                 )}
               </div>
             )}
+            {search.atmosphere && (
+              <p className="data-note">
+                口コミの意味の近さで検索しています。条件を満たす保証ではないため、口コミの内容もご確認ください。
+              </p>
+            )}
+            {result.semanticMessage && (
+              <p role="status" className="semantic-notice">
+                {result.semanticMessage}
+              </p>
+            )}
             <div className="store-list">
               {result.stores.map((store) => (
                 <StoreCard key={store.id} store={store} />
               ))}
             </div>
-            {result.total === 0 && (
+            {result.total === 0 && !result.semanticMessage && (
               <EmptyState title="条件に合う職場が見つかりませんでした">
                 <p>
                   キーワードを短くするか、絞り込み条件を変更してみてください。

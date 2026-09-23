@@ -18,7 +18,8 @@
     "db:seed": "tsx src/db/seed.ts",
     "db:check-dev": "tsx src/db/check-dev-db.ts",
     "db:prepare-review-flow": "tsx src/db/prepare-review-flow.ts",
-    "db:reset-test-reviews": "tsx src/db/reset-test-reviews.ts"
+    "db:reset-test-reviews": "tsx src/db/reset-test-reviews.ts",
+    "db:index-reviews": "tsx src/db/index-reviews.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.102.8",

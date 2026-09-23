@@ -16,6 +16,7 @@ import {
 import type { Db } from "../../db/client";
 import { categories, reviews, storeCategories, stores } from "../../db/schema";
 import { PAGE_SIZE, type StoreSearch } from "../../schemas/store-search";
+import type { SemanticMatch } from "./review-embeddings";
 
 export const publicStoreCondition = () =>
   and(eq(stores.status, "ACTIVE"), isNull(stores.deletedAt));
@@ -30,7 +31,12 @@ export function literalPattern(value: string) {
   return `%${value.replace(/[\\%_]/g, "\\$&")}%`;
 }
 
-export async function searchPublicStores(db: Db, input: StoreSearch) {
+export async function searchPublicStores(
+  db: Db,
+  input: StoreSearch,
+  semanticMatches?: SemanticMatch[],
+) {
+  const semanticIds = semanticMatches?.map((match) => match.storeId);
   const condition = and(
     publicStoreCondition(),
     input.q ? ilike(stores.name, literalPattern(input.q)) : undefined,
@@ -64,6 +70,11 @@ export async function searchPublicStores(db: Db, input: StoreSearch) {
         ? inArray(stores.id, input.ids)
         : sql`false`
       : undefined,
+    semanticIds
+      ? semanticIds.length
+        ? inArray(stores.id, semanticIds)
+        : sql`false`
+      : undefined,
   );
   const [totalRow] = await db
     .select({ total: count() })
@@ -72,12 +83,23 @@ export async function searchPublicStores(db: Db, input: StoreSearch) {
   const total = totalRow.total;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const page = Math.min(input.page, pageCount);
+  const semanticOrder = semanticMatches?.length
+    ? sql<number>`case ${sql.join(
+        semanticMatches.map(
+          (match, rank) =>
+            sql`when ${stores.id} = ${match.storeId} then ${rank}`,
+        ),
+        sql.raw(" "),
+      )} else ${semanticMatches.length} end`
+    : undefined;
   const order =
-    input.sort === "rating"
-      ? sql`${stores.bayesianScore} desc nulls last`
-      : input.sort === "reviews"
-        ? sql`${stores.reviewCount} desc`
-        : asc(stores.name);
+    input.sort === "relevance" && semanticOrder
+      ? semanticOrder
+      : input.sort === "rating"
+        ? sql`${stores.bayesianScore} desc nulls last`
+        : input.sort === "reviews"
+          ? sql`${stores.reviewCount} desc`
+          : asc(stores.name);
   const rows = await db
     .select({
       id: stores.id,
@@ -136,6 +158,12 @@ export async function searchPublicStores(db: Db, input: StoreSearch) {
         excerpts
           .find((review) => review.storeId === row.id)
           ?.summary.slice(0, 120) ?? null,
+      matchedReviewText:
+        semanticMatches?.find((match) => match.storeId === row.id)?.text ??
+        null,
+      semanticScore:
+        semanticMatches?.find((match) => match.storeId === row.id)?.score ??
+        null,
     })),
     total,
     page,
