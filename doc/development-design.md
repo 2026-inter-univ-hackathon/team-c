@@ -1,10 +1,12 @@
 # アルバイト口コミWebアプリ 開発設計書
 
-本書は目標とする仕様・構成を含みます。現在の実装範囲と未実装機能は[実装状況](./implementation-status.md)を参照してください。
+更新日: 2026-09-23
+
+本書は現在のDB設計とアプリケーション境界、および認証・組織管理の将来設計を記載します。現在の実装範囲は[実装状況](./implementation-status.md)を参照してください。将来設計を現行機能として扱わないでください。
 
 ## 1. 目的と設計原則
 
-本書はMVP実装の技術構成、認証・認可、DB設計を定義する。初期段階では機能開発を優先し、デプロイとAI機能は対象外とする。
+本書はMVPの技術構成、DB設計、公開境界を定義する。開発デモへのデプロイは実装済みで、AI機能は対象外とする。認証・認可はテーブルと将来方針だけがあり、実際の認証フローは未実装である。
 
 - ユーザーを種類別のテーブルへ分割しない
 - 認証方法、プラットフォーム権限、組織内権限を分離する
@@ -18,16 +20,19 @@
 |---|---|
 | Full-stack | TanStack Start |
 | Language | TypeScript（strict） |
-| UI | React / Tailwind CSS / shadcn/ui |
-| Routing / State / Form | TanStack Router / Query / Form |
+| UI | React / Tailwind CSS / プロジェクト固有CSS |
+| Routing / State / Form | TanStack Router / React hooks / URL search params |
 | Validation | Zod |
 | Database | PostgreSQL 18 |
 | ORM / Migration | Drizzle ORM / Drizzle Kit |
-| Authentication | 開発用HTTP Basic認証＋アプリ内Session |
-| Test | Vitest / Playwright |
+| Authentication | 未実装。開発用更新だけ環境・DB制約で限定 |
+| Test | Vitest |
 | Package manager | pnpm |
+| CI / Deployment | GitHub Actions / self-hosted runner / Nginx / systemd |
 
 単一のTanStack Startアプリとして構築し、独立Backendやモノレポは設けない。
+
+TanStack Query、TanStack Form、shadcn/ui、Playwrightは現在の実装へ導入していない。
 
 ## 3. アプリケーション構成
 
@@ -35,8 +40,8 @@
 Browser → TanStack Start
              ├─ Routes / UI
              ├─ Server Functions
-             ├─ AuthAdapter / Authorization Policy
              ├─ Use Cases
+             ├─ Repositories
              └─ Drizzle ORM → PostgreSQL
 ```
 
@@ -48,17 +53,13 @@ Browser → TanStack Start
 src/
 ├─ routes/
 ├─ features/
-│  ├─ auth/
-│  ├─ stores/
-│  ├─ reviews/
-│  ├─ profile/
-│  └─ organizations/
+│  └─ stores/
 ├─ components/
 ├─ server/
-│  ├─ auth/
-│  ├─ authorization/
 │  ├─ use-cases/
-│  └─ errors/
+│  ├─ repositories/
+│  ├─ errors/
+│  └─ dev-review-access.ts
 ├─ db/
 │  ├─ schema/
 │  ├─ migrations/
@@ -71,6 +72,8 @@ src/
 依存方向は`Route → Server Function → Use Case → Repository/DB`とする。
 
 ## 5. 認証・認可設計
+
+この章は将来設計である。現在は `AuthAdapter`、Session発行、Authorization Policyを実装しておらず、一般ユーザーの投稿を許可しない。開発用投稿とリアクションは固定Userをサーバー側で選び、環境・localhost・DB名を検証して限定している。これは認証や認可の代替ではない。
 
 ### 5.1 概念の分離
 
@@ -99,7 +102,7 @@ interface AuthAdapter {
 
 `AuthAdapter`は本人を特定するだけで権限を返さない。Authorization PolicyがDB上のPlatformRoleとOrganizationMembershipから権限を判定する。
 
-初期実装ではBasic認証通過後に固定テストUserを選択し、アプリ内Sessionを発行する。将来Google OAuthを追加する場合はAuthAccountを追加して既存Userへ紐づける。Review等の業務テーブルは変更しない。
+将来認証を追加する場合は、認証方式を `AuthAccount` から既存Userへ紐づける。Review等の業務テーブルは認証プロバイダーの識別子ではなく `users.id` を参照し続ける。Basic認証は現行実装でも確定した導入方式でもない。
 
 ### 5.3 認可ルール
 
@@ -112,7 +115,6 @@ interface AuthAdapter {
 | サービス全体の管理 | Platform ADMIN |
 
 - 未認証は`401`、権限不足は`403`
-- Basic認証資格情報は環境変数で管理し、DBへ保存しない
 - Session Cookieは`HttpOnly`、`SameSite=Lax`
 - DBにはSession Tokenのハッシュだけを保存する
 
@@ -152,6 +154,8 @@ erDiagram
     REVIEW_QUESTIONS ||--o{ REVIEW_ANSWERS : answers
     RATING_DIMENSIONS ||--o{ REVIEW_RATINGS : defines
     REVIEWS ||--o{ REVIEW_RATINGS : contains
+    REVIEWS ||--o{ REVIEW_REACTIONS : receives
+    USERS ||--o{ REVIEW_REACTIONS : reacts
 
     USERS {
         uuid id PK
@@ -272,6 +276,14 @@ erDiagram
         smallint employment_start_year
         smallint employment_end_year
         varchar employment_status
+        varchar occupation
+        varchar work_duration
+        jsonb atmosphere_tags
+        jsonb staff_tags
+        varchar manager_presence
+        varchar recommendation
+        integer guideline_version
+        timestamptz guideline_agreed_at
         varchar summary
         varchar public_author_label
         varchar status
@@ -295,6 +307,12 @@ erDiagram
         uuid review_form_id FK
         uuid rating_dimension_id FK
         smallint score
+    }
+    REVIEW_REACTIONS {
+        uuid review_id FK
+        uuid user_id FK
+        varchar reaction_type
+        timestamptz created_at
     }
 ```
 
@@ -389,7 +407,7 @@ Questionは`min_length`と`max_length`を持ち、`0 <= min_length <= max_length
 
 #### rating_dimensions
 
-`overall`、`atmosphere`、`relationship`、`training`、`workload`等の評価軸を管理する。評価軸追加時にReviewsの変更は不要。
+現行フォームでは`atmosphere`、`training`、`workload`、`flexibility`の4評価軸を有効にする。旧`overall`は無効化し、総合点は保存値ではなく4軸の算術平均として計算する。評価軸追加時にReviewsのカラム変更は不要。
 
 `review_form_rating_dimensions`でFormごとの評価軸、表示順、必須設定を管理する。主キーは`(review_form_id, rating_dimension_id)`とする。これにより、過去のFormで要求された評価軸を再現できる。
 
@@ -397,15 +415,15 @@ Questionは`min_length`と`max_length`を持ち、`0 <= min_length <= max_length
 
 口コミの主体、勤務情報、公開状態、匿名表示用Snapshotを保持する。主なIndexは`store_id`、`user_id`、`(store_id, status, published_at DESC)`とする。
 
-Statusは`DRAFT / PUBLISHED / HIDDEN / DELETED`、Employment Statusは`CURRENT / FORMER`とする。
+Statusは`DRAFT / PUBLISHED / HIDDEN / DELETED`、Employment Statusは`CURRENT / LEFT_RECENTLY / LEFT_LONG_AGO`とする。
 
-- `employment_start_year <= employment_end_year`
-- `CURRENT`の場合は`employment_end_year IS NULL`
+- `employment_start_year` と `employment_end_year` は旧形式との移行用にnullableで残す。現行フォームでは収集せず、勤務期間は `work_duration` の区分で保存する
+- 年が残る旧データでは `employment_start_year <= employment_end_year`、`CURRENT`の場合は`employment_end_year IS NULL`
 - 未削除の口コミは同一User・Storeにつき1件とする
 - `PUBLISHED`では`published_at IS NOT NULL`
 - `HIDDEN`では`hidden_at`と`hidden_reason`を必須とする。`hidden_by_user_id`は監査用だが、User物理削除に備えてNULLを許容する
 - `DELETED`では`deleted_at IS NOT NULL`
-- `public_author_label`はReview単位で生成する非識別ラベルとし、同じUserの別Reviewを追跡できない値にする
+- `public_author_label`は旧形式との互換用にnullableで残す。現行の公開属性は在籍状況・立場・勤務期間からサーバー側で生成する
 - 公開ResponseへUserのEmail、表示名、User IDを含めない
 - `lock_version`を更新条件に含め、更新成功時に1加算する。値が一致しない場合は`409 Conflict`
 
@@ -424,7 +442,7 @@ DRAFT → PUBLISHED → HIDDEN
                   HIDDEN → PUBLISHED（管理者による再公開）
 ```
 
-`summary`は1～500文字、Questionの`label`は1～300文字、`answer_text`はQuestionの`min_length`～`max_length`とする。空白だけの値は保存しない。自由記述へ個人名・連絡先等を入力しない旨を投稿画面に表示する。
+`summary`のカラム長は500文字だが、現行フォームとDBのCHECK制約は前後の空白を除いて30〜300文字を許可する。Questionの`label`は1〜300文字、`answer_text`はQuestionの`min_length`〜`max_length`とする。空白だけの値は保存しない。自由記述へ個人名・連絡先等を入力しない旨を投稿画面に表示する。
 
 #### review_answers
 
@@ -449,18 +467,18 @@ DRAFT → PUBLISHED → HIDDEN
 
 これによりFormにない評価軸をDBでも拒否する。必須評価軸がすべて存在することは公開Use Caseで検証する。
 
-#### 将来の投稿機能
+#### 投稿の周辺機能
 
 SNS的な機能が必要になった場合は、Reviewを参照する独立テーブルとして追加する。
 
-| 将来テーブル | 用途 | 主な一意制約 |
+| テーブル | 状態・用途 | 主な一意制約 |
 |---|---|---|
-| review_comments | Reviewへのコメント・返信 | id |
-| review_reactions | いいね等のリアクション | `(review_id, user_id, reaction_type)` |
-| review_bookmarks | ユーザーの保存 | `(review_id, user_id)` |
-| review_reports | 不適切なReviewの通報 | 要件確定時に定義 |
+| review_reactions | 実装済み。3種類のリアクション | `(review_id, user_id, reaction_type)` |
+| review_comments | 未実装。Reviewへのコメント・返信 | id |
+| review_bookmarks | 未実装。アカウント単位の口コミ保存 | `(review_id, user_id)` |
+| review_reports | 未実装。不適切なReviewの通報 | 要件確定時に定義 |
 
-これらは初期Migrationへ含めない。複数種類の投稿に同じ機能を提供することが確定した場合に限り、共通Contentモデルへの再設計を検討する。
+店舗の「気になる」はReview bookmarkではなく、店舗IDをブラウザの `localStorage` に保存する。複数種類の投稿に同じ機能を提供することが確定した場合に限り、共通Contentモデルへの再設計を検討する。
 
 ### 6.6 削除ルール
 
@@ -484,9 +502,9 @@ SNS的な機能が必要になった場合は、Reviewを参照する独立テ�
 
 ### 6.7 初期データ
 
-Seedで一般User、組織Owner、Platform ADMINを作成する。全員を`users`へ保存し、権限の違いはPlatformRoleとOrganizationMembershipで表現する。
+Seedで固定テストUserと5人のダミー投稿者、50店舗、Category、ReviewForm、4つのRatingDimension、32件のReviewを作成する。固定テストUserの投稿枠は空ける。Organization、Platform Role、Membershipの初期データは現在投入しない。
 
-併せてOrganization、Store、Category、ReviewForm、Question、RatingDimension、Reviewの確認用データを投入する。Seedは開発・テスト環境だけで実行可能にする。
+Seedは開発・テスト環境だけで実行可能にし、再実行しても重複しないようにする。
 
 ### 6.8 Transactionと集計
 
@@ -494,7 +512,9 @@ Seedで一般User、組織Owner、Platform ADMINを作成する。全員を`user
 - Review編集も同じAggregate全体を1Transactionで更新し、`lock_version`で楽観ロックする
 - ReviewForm公開は旧FormのRETIRED化と新FormのPUBLISHED化を1Transactionで行う
 - Organizationから最後のOWNERを外す操作は禁止し、同一Transaction内で確認する
-- 平均評価と件数は`PUBLISHED`のReviewだけから計算し、MVPでは集計テーブルへ保存しない
+- 評価と件数は、4評価と勤務期間が揃った公開・非表示でないReviewだけから計算する
+- 勤続期間と在籍状況を掛け合わせて評価軸別・総合点を重み付けし、`stores` の集計カラムへ小数第1位で保存する
+- 評価順用の `bayesian_score` は全体平均3.2、事前重み3.0で少数口コミを補正する。表示値と最低評価の絞り込みは `overall_score` を使う
 - Sessionの`last_seen_at`は毎Requestで更新せず、一定時間以上経過した場合だけ更新する
 
 ### 6.9 Migration受け入れ条件
@@ -509,16 +529,16 @@ Seedで一般User、組織Owner、Platform ADMINを作成する。全員を`user
 ## 7. Server Function設計
 
 ```text
-認証 → Zod検証 → 認可 → Use Case → DB → Response
+Route / Server Function → Zod検証 → Use Case → Repository / DB → 公開DTO
 ```
 
-| Feature | 主な処理 |
+| Feature | 現在の主な処理 |
 |---|---|
-| Auth | テストUser選択、Session取得、ログアウト |
-| Store | 一覧、検索、詳細取得 |
-| Review | Form取得、投稿、一覧、詳細、編集、削除 |
-| Profile | 自分の情報、投稿履歴取得 |
-| Organization | 所属店舗、店舗別評価、口コミ取得 |
+| Store | 一覧、検索、詳細取得、ページング、集計 |
+| Review | 公開一覧、開発環境限定の投稿、リアクション |
+| Saved | ブラウザ側で店舗IDを保存し、公開店舗だけ取得 |
+
+Auth、口コミ編集・削除、Profile、Organizationは未実装。
 
 DB Entityをそのまま画面へ返さず、Zodで定義したResponse Schemaへ変換する。
 
@@ -526,32 +546,30 @@ DB Entityをそのまま画面へ返さず、Zodで定義したResponse Schema�
 
 ```env
 DATABASE_URL=
+ENABLE_DEV_REVIEW_POSTING=false
+DEV_DATABASE_NAME=example_dev
 BASIC_AUTH_USER=
 BASIC_AUTH_PASSWORD=
 SESSION_SECRET=
 ```
 
-`.env`はGitへ追加しない。`.env.example`には変数名だけを記載し、起動時にZodで検証する。
+`.env`はGitへ追加しない。`BASIC_AUTH_USER`、`BASIC_AUTH_PASSWORD`、`SESSION_SECRET` は将来用であり、現在の認証には使用していない。開発用投稿は `ENABLE_DEV_REVIEW_POSTING` と `DEV_DATABASE_NAME` に加え、`NODE_ENV`、localhost、実際のDB名をサーバー側で検証する。
 
 ## 9. テスト方針
 
-- Authorization PolicyはPlatform Role、Membership、所有者条件をVitestで検証
 - Zod Schemaは正常値、境界値、不正値を検証
-- Use Caseはテスト用AuthAdapterで認証方式から独立して検証
-- ReviewFormのVersionと回答Questionの整合性を検証
-- Form外のQuestion・RatingDimensionを直接INSERTしてDB制約で失敗することを検証
-- 同一User・Storeへの未削除Reviewの重複INSERTが失敗し、論理削除後は再投稿できることを検証
-- `lock_version`が古い更新を`409 Conflict`にすることを検証
-- 公開ResponseにUser ID、Email、表示名が含まれないことを検証
-- Playwrightで口コミ投稿と組織ダッシュボードを検証
-- Migration適用後にSeedを投入して主要Server Functionを疎通確認
+- 検索、公開条件、属性の粗粒度化、投稿日、評価集計、お気に入りをVitestで検証
+- 投稿、開発環境拒否、同意、文字数、禁止語、重複、リアクションをVitestで検証
+- 公開Responseに内部User ID、正確な日時、同意日時が含まれないことを確認
+- CIでMigration適用、Seedの再実行、Drizzleスキーマとの差分を確認
+- Playwright等のE2Eテストは未導入。主要ブラウザ動線は手動確認する
 
 ## 10. 初期スコープ外
 
 - Google OAuth等の外部認証
 - AI口コミ分析、自然言語検索、Embedding、pgvector
 - 画像アップロード
-- コメント、リアクション、ブックマーク
+- コメント、アカウント単位のブックマーク
 - 通報・本格モデレーション
-- デプロイ・本番インフラ設計
+- 本番向けの認証・公開投稿・運用設計
 - Nativeアプリ向けAPI

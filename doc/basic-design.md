@@ -1,170 +1,127 @@
 # アルバイト口コミWebアプリ 基本設計
 
-本書は目標とする仕様・構成を含みます。現在の実装範囲と未実装機能は[実装状況](./implementation-status.md)を参照してください。
+更新日: 2026-09-23
 
-実装時の詳細なコード構成、認証境界、テーブル定義は[開発設計書](./development-design.md)を参照する。
+本書は現在のMVP構成を示します。未実装の認証・組織管理・AI機能は「将来設計」として区別します。詳細なDB定義は[開発設計書](./development-design.md)、実装済み範囲は[実装状況](./implementation-status.md)を参照してください。
 
 ## 1. システム構成
 
-```
-Browser → TanStack Start（UI / Server Functions / Server Routes）→ PostgreSQL
-```
-
-MVPは単一のTypeScriptアプリとして構築する。画面から使う処理はServer Functions、外部クライアントにも公開する必要が生じた処理はServer Routesに置き、不要なレイヤーを増やさない。
-
-## 2. 技術スタック
-
-| レイヤー | 技術 | 採用理由 |
-|---|---|---|
-| Full-stack | TanStack Start / React / TypeScript | UIとサーバー処理を1つの型安全なアプリに集約 |
-| TanStack | Router / Query / Form | ルーティング、非同期データ、フォームを統一 |
-| UI | Tailwind CSS / shadcn/ui | 短期間でレスポンシブUIを構築しやすい |
-| Validation | Zod | Server Functionsを含む全外部入力を実行時検証 |
-| DB | PostgreSQL 18 / Drizzle ORM | UUIDv7、スキーマ、DBアクセスを一元管理 |
-| Auth（初期） | HTTP Basic認証＋固定テストユーザー | 機能開発中のアクセス制限と権限確認に限定 |
-| Test | Vitest / Playwright | ロジックと主要ユーザーフローを検証 |
-| Tooling | pnpm / ESLint / Prettier | 一般的な構成に統一し保守しやすくする |
-
-デプロイ構成、AI API、Embedding、pgvectorは初期スコープに含めない。
-
-## 3. ユーザーと権限
-
-全利用者をUserとして扱い、ユーザー種別でテーブルを分割しない。一般利用はACTIVEなUserに許可し、追加権限だけを関係テーブルで表現する。
-
-| 機能 | 権限条件 |
-|---|---|
-| 店舗検索・口コミ閲覧・投稿 | ACTIVEなUser |
-| 口コミ編集・削除 | 投稿者本人またはPlatform ADMIN |
-| 組織ダッシュボード | 対象OrganizationのMembership保有者 |
-| 店舗管理 | 対象OrganizationのOWNERまたはMANAGER |
-| 管理機能 | Platform ADMIN |
-
-### 認証・認可設計
-
-認証（本人確認）と認可（操作権限）を分離する。Routeや業務ロジックからBasic認証を直接参照せず、必ず共通の認証サービスを経由する。
-
-```ts
-type AuthenticatedPrincipal = {
-  userId: string
-  sessionId: string
-}
-
-interface AuthAdapter {
-  authenticate(request: Request): Promise<AuthenticatedPrincipal | null>
-}
+```text
+Browser
+  → TanStack Start Routes / React UI
+  → Server Functions
+  → Use Cases
+  → Repositories / Drizzle ORM
+  → PostgreSQL 18
 ```
 
-初期実装では`BasicAuthAdapter`を使用する。Basic認証を通過した後、開発用の固定Userを選択してSessionを発行する。AuthAdapterは本人を特定するだけで、Roleを返さない。
+単一のTypeScriptアプリとして構築し、独立したBackendやモノレポは設けません。画面からの読み取り・更新はServer Functionsを通し、Use CaseとRepositoryへ責務を分けます。現在、外部向けAPIやServer Routesはありません。
 
-将来は`GoogleAuthAdapter`等を追加する。外部IDはAuthAccountを介してUserへ紐づけ、Review等の業務データは常に`users.id`を参照する。
+## 2. 現在の技術スタック
+
+| レイヤー | 技術 |
+| --- | --- |
+| Runtime / Package manager | Node.js 24 / pnpm 11 |
+| Full-stack | TanStack Start / React / TypeScript |
+| Routing | TanStack Router |
+| UI | Tailwind CSS / プロジェクト固有CSS |
+| 状態 | Routeのsearch params、React hooks、`localStorage` |
+| Validation | Zod |
+| DB | PostgreSQL 18 / Drizzle ORM / postgres.js |
+| Test | Vitest |
+| Tooling | ESLint / Prettier / GitHub Actions |
+| Deployment | self-hosted runner / Nginx / systemd |
+
+TanStack Query、TanStack Form、shadcn/ui、Playwrightは依存関係または実装へ導入していません。外部AI API、Embedding、pgvectorも使用していません。
+
+## 3. 画面構成
 
 ```text
-Request → AuthAdapter → AuthenticatedPrincipal → Authorization Policy → Use Case
-              │
-              ├─ BasicAuthAdapter（初期）
-              └─ GoogleAuthAdapter（将来）
+ホーム
+  ├─ 店舗一覧 → 店舗詳細 → 口コミ閲覧
+  │                         └─ 開発環境限定の口コミ投稿
+  └─ このブラウザに保存した職場
+
+共通案内
+  ├─ ガイドライン
+  ├─ 利用規約
+  ├─ プライバシーポリシー
+  ├─ 運営者情報
+  └─ お問い合わせ・削除依頼
 ```
 
-認可判定はAdapterに持たせず、共通のAuthorization Policyで行う。
+## 4. 投稿フロー
 
-- 未認証は`401 Unauthorized`
-- 認証済みだが権限不足の場合は`403 Forbidden`
-- Reviewの編集・削除は投稿者本人またはPlatform ADMIN
-- 組織向けデータはOrganizationMembershipによる所属確認を必須とする
-- Basic認証は開発環境限定とし、資格情報は環境変数で管理する
-
-## 4. 画面構成・遷移
-
-**一般ユーザー**：ホーム →（検索）→ 店舗一覧 → 店舗詳細 →（口コミ閲覧／投稿）、プロフィール → 投稿履歴
-
-**企業ユーザー**：Login → 企業Dashboard → 管理店舗一覧 → 店舗分析 → 口コミ詳細
-
-**共通**：Basic認証 → テストユーザー選択／エラー／403／404
-
-### 口コミ投稿はStep形式（一度に全項目を出さない）
+```text
+Step 1 属性
+  → Step 2 職場の特徴
+  → Step 3 4項目評価とおすすめ度
+  → Step 4 生の声
+  → Step 5 公開プレビュー・同意
+  → サーバー検証・保存
 ```
-Step1 勤務情報 → Step2 5段階評価 → Step3 リアルな質問 → Step4 総合コメント → 確認 → 投稿
-```
-進捗表示（例：3/4）を画面上部に設置。
+
+戻る操作で入力を保持します。各ステップで利用者へエラーを示し、最終送信ではZod、Use Case、DB制約で再検証します。口コミ、回答、評価は1つのトランザクションで保存します。
 
 ## 5. データモデル
 
-### 主要Entity
-```
-Organization ── Store ── Review
+```text
+Organization ── Store ── Review ── ReviewReaction
 Organization ── OrganizationMembership ── User
 User ── AuthAccount / Session / Review
 ReviewForm ── ReviewQuestion ── ReviewAnswer
 ReviewForm ── ReviewFormRatingDimension ── RatingDimension
 RatingDimension ── ReviewRating
+Store ── StoreCategory ── Category
 ```
 
-| Entity | 概要 |
-|---|---|
-| User | 全利用者共通のアプリ内Identity。Roleを持たない |
-| AuthAccount / Session | 認証方法との紐づけ／ログイン状態 |
-| PlatformRole | サービス全体の管理権限 |
-| Organization | 企業や店舗運営主体 |
-| OrganizationMembership | Userの組織所属と組織内Role |
-| Store / Category | 店舗情報／店舗の業種分類 |
-| Review | 店舗口コミのAggregate Root。投稿者・店舗・勤務情報・一言コメント・公開状態を管理 |
-| ReviewForm / Question / Answer | Version管理された質問と回答 |
-| ReviewFormRatingDimension | Formごとに利用する評価軸・表示順・必須設定 |
-| RatingDimension / ReviewRating | 可変の評価軸と評価値 |
+認証・組織関連テーブルは将来拡張を壊さないためスキーマにありますが、認証フローと組織向け画面は未実装です。現在の投稿・リアクションはサーバー内で固定した開発用Userを使います。
 
-Reviewは投稿コンテンツとしてブログやSNSと共通する性質を持つが、店舗・勤務経験・評価を持つ固有ドメインであるため、MVPでは汎用`Content`や`Post`へ抽象化しない。将来コメント、リアクション、通報等が必要になった場合はReviewを参照する周辺Entityとして追加する。
+## 6. 公開境界
 
-## 6. サーバー処理構成（Resource単位）
+- 有効な店舗と `PUBLISHED` の新形式口コミだけを返す。
+- 内部ユーザーID、Email、正確な投稿日、同意日時を公開しない。
+- 公開口コミが5件未満の店舗では属性を粗くし、勤務期間を公開せず、投稿日を年月までに丸める。
+- 5件以上では詳細属性を表示し、投稿日を日本時間の上旬・中旬・下旬へ丸める。
+- 自由記述はReactのテキストとして描画し、HTMLとして解釈しない。
+- 検索SQLへユーザー入力を文字列連結しない。
 
-```
-/auth  /stores  /reviews  /users  /organizations  /search
-```
+## 7. 認証・認可の現在地
 
-- アプリ画面からの呼び出しはTanStack StartのServer Functionsを使う
-- 外部公開が必要な処理だけServer Routesとして実装する
-- **Store**：一覧／詳細／店舗ごとの口コミ取得
-- **Review**：投稿／編集／削除／取得（編集・削除は投稿者本人 or 管理者のみ）
-- **Search**：店舗名・業種・エリア・評価による通常検索
+認証、Session、Authorization Policyは未実装です。そのため、一般公開環境では口コミ投稿とリアクションを受け付けません。
 
-## 7. 将来機能の扱い
+開発用の更新操作は、次をすべて満たす場合だけ許可します。
 
-AI検索・口コミ分析・Embeddingは初期実装に含めない。口コミと検索条件のデータ構造を先に安定させ、必要性を確認してから別途設計する。
+- `NODE_ENV=development`
+- `ENABLE_DEV_REVIEW_POSTING=true`
+- `DATABASE_URL` のホストがlocalhost
+- 接続先DB名が `DEV_DATABASE_NAME` と一致
+- DB名に `dev`、`test`、`local` のいずれかを含む
 
-## 8. ストレージ方針
+この制限は認証の代替ではなく、開発中の誤操作防止です。将来認証を導入するときは、本人確認と操作権限を分離し、投稿者本人・Platform Role・Organization MembershipをUse Caseで検証します。
 
-| 対象 | MVP | 将来 |
-|---|---|---|
-| プロフィール画像 | Google Loginの画像URLをそのまま利用 | — |
-| 店舗画像 | Frontend内の静的アセット | Cloudflare R2等のObject Storageへ移行 |
-| 口コミ画像 | 未対応（MVP対象外） | Object Storage、DBにはURL/Keyのみ保持 |
+## 8. 集計と保存
 
-## 9. セキュリティ / 非機能方針
+- 口コミ総合点は4評価の算術平均。
+- 店舗の評価軸別・総合点は勤続期間と在籍状況を掛け合わせた重み付き平均。
+- 評価順は口コミが少ない店舗を全体平均へ寄せるベイズ補正値を使用し、画面には重み付き総合点を表示。
+- おすすめ度は点数へ含めない。
+- ブラウザの「気になる」は店舗IDだけを `localStorage` に保存し、サーバー上のUserとは結び付けない。
+- 口コミリアクションはDBへ保存するが、開発用固定Userだけが更新できる。
 
-- **認証**：初期は開発環境限定のBasic認証。業務コードはAuthAdapter経由で認証結果を取得
-- **認可**：認証方式から独立したRole＋企業所属情報でアクセス制御
-- **入力検証**：Zodによる全外部入力のサーバー側検証
-- **通信**：ローカル開発環境に限定。本番通信方式はデプロイ設計時に決定
-- **投稿保護**：編集・削除時に投稿者IDを照合
-- **Pagination**：店舗一覧・口コミ一覧で必須（一括取得しない）
-- **Cache**：TanStack Queryでリスト・詳細をキャッシュ、投稿/編集後は再取得
-- **Index**：Review→Store／Review→User／Store→Organization／OrganizationMembership関連にIndex
-- **ID**：単独主キーはPostgreSQL 18の`uuidv7()`でDB側生成
+## 9. 品質と運用
 
-### MVPでは導入しない
-外部OAuth／AI API／pgvector／Redis／Elasticsearch／Kafka等のMQ／マイクロサービス化／複雑なキャッシュ層 — 必要性が確認されてから導入する。
+- Vitestで入力境界、公開条件、集計、投稿、リアクション、保存データの検証を行う。
+- CIでTest、Lint、Format、Typecheck、Build、DBマイグレーション、seed、依存監査を行う。
+- CIに成功した最新の `main` だけを開発デモへ反映する。
+- デプロイ前にDBをバックアップし、起動確認に失敗した場合は直前のコードへ戻す。
 
-## 10. MVP完成条件（動作フロー）
+## 10. 将来設計
 
-**一般利用**：Basic認証 → 一般テストUser選択 → 店舗一覧 → 店舗詳細 → 口コミ確認 → 口コミ投稿 → 投稿確認
+- 一般ユーザー認証とSession
+- 投稿者本人、Platform Role、Organization Membershipに基づく認可
+- 口コミ編集・削除、通報、プロフィール、組織ダッシュボード
+- アカウント単位のお気に入り
+- 必要性と安全性を検証したうえでのAI要約・自然言語検索
 
-**組織管理**：Basic認証 → 組織Membershipを持つテストUser選択 → Dashboard → 管理店舗選択 → 評価確認 → 口コミ確認
-
-**認証の交換可能性**：業務ロジックを変更せず、AuthAdapterの差し替えで外部認証を追加できる。
-
-## 11. 将来拡張の全体像
-
-```
-口コミ蓄積 → 意味検索 → AI分析 → レコメンド → RAG → 求人応募 → 採用連携
-```
-
-外部クライアントが必要になった場合は、既存ユースケースをTanStack StartのServer Routesから公開する。
+将来AI機能を追加しても、元口コミの表示、利用者の最終判断、外部操作の明示的な承認を維持します。
