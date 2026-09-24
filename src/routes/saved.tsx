@@ -22,6 +22,15 @@ function SavedPage() {
         あとでじっくり、見比べよう。保存はこのブラウザだけに反映されます。
       </p>
       {ids.length > 0 && (
+        <div className="saved-compare-banner">
+          <div>
+            <strong>気になる職場、どこが自分に合いそう？</strong>
+            <p>最大3件の評価や口コミを、並べて見比べられます。</p>
+          </div>
+          <ButtonLink to="/compare">職場を比較する</ButtonLink>
+        </div>
+      )}
+      {ids.length > 0 && (
         <ConfirmDialog
           triggerLabel="保存をすべて解除"
           triggerClassName="text-link"
